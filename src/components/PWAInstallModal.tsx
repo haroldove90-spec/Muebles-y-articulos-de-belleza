@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { Download, Smartphone, Laptop, CheckCircle, X, Share2, PlusSquare } from 'lucide-react';
+import { APP_ICON_URL } from './Logo';
 
 interface PWAInstallModalProps {
   buttonText?: string;
@@ -60,10 +61,12 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
         >
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="bg-[#0F172A] p-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#E6007E] flex items-center justify-center">
-                  <Download className="w-4 h-4 text-white" />
-                </div>
+              <div className="flex items-center gap-2.5">
+                <img
+                  src={APP_ICON_URL}
+                  alt="Palacio de Belleza"
+                  className="w-9 h-9 object-contain select-none"
+                />
                 <div>
                   <h3 className="text-base font-bold">Instalar Palacio de Belleza</h3>
                   <p className="text-xs text-slate-300">Punto de Venta Web Pro (PWA)</p>

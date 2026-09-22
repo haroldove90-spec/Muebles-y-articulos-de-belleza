@@ -11,11 +11,11 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg'],
+        includeAssets: ['palaciodebellezaicono.png', 'palaciodebellezalogo.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'Palacio de Belleza - POS',
-          short_name: 'PalacioPOS',
+          name: 'Palacio de Belleza',
+          short_name: 'Palacio de Belleza',
           description: 'Sistema de Punto de Venta para Palacio de Belleza - Muebles y artículos de belleza',
           theme_color: '#E6007E',
           background_color: '#F4F5F7',
@@ -24,10 +24,10 @@ export default defineConfig(() => {
           scope: '/',
           icons: [
             {
-              src: '/icon.svg',
+              src: '/palaciodebellezaicono.png',
               sizes: '192x192 512x512',
-              type: 'image/svg+xml',
-              purpose: 'any',
+              type: 'image/png',
+              purpose: 'any maskable',
             },
           ],
         },

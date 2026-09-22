@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserRole } from '../types';
 import { ShieldCheck, UserCheck, ShoppingBag, Eye } from 'lucide-react';
+import { LOGO_URL } from './Logo';
 
 interface RoleSelectorProps {
   onSelectRole: (role: UserRole) => void;
@@ -47,41 +48,21 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({ onSelectRole }) => {
       className="min-h-screen bg-[#F4F5F7] flex flex-col items-center justify-center p-4 sm:p-6 md:p-10"
     >
       <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
-        {/* Subtle Brand Watermark / Centered Logo Icon */}
+        {/* Logotipo Oficial Completo sin encapsular */}
         <div className="mb-8 md:mb-12 flex flex-col items-center text-center">
-          <div className="w-20 h-20 md:w-28 md:h-28 mb-3 drop-shadow-lg">
-            <svg viewBox="0 0 512 512" fill="none" className="w-full h-full">
-              <defs>
-                <linearGradient id="castleGradSel" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#FF2A9D" />
-                  <stop offset="50%" stopColor="#E6007E" />
-                  <stop offset="100%" stopColor="#B8005E" />
-                </linearGradient>
-              </defs>
-              <circle cx="256" cy="256" r="240" fill="#FFFFFF" stroke="#E6007E" strokeWidth="8" />
-              {/* Castle towers */}
-              <path d="M128 150 L142 150 L142 165 L154 165 L154 150 L168 150 L168 165 L180 165 L180 150 L194 150 L194 180 L204 190 L204 330 L118 330 L118 190 L128 180 Z" fill="url(#castleGradSel)" />
-              <path d="M318 150 L332 150 L332 165 L344 165 L344 150 L358 150 L358 165 L370 165 L370 150 L384 150 L384 180 L394 190 L394 330 L308 330 L308 190 L318 180 Z" fill="url(#castleGradSel)" />
-              <polygon points="256,190 310,235 310,335 202,335 202,235" fill="#C20067" />
-              <polygon points="256,202 298,238 298,330 214,330 214,238" fill="url(#castleGradSel)" />
-              <rect x="242" y="255" width="28" height="42" rx="14" fill="#FFFFFF" />
-              <rect x="146" y="200" width="22" height="34" rx="11" fill="#FFFFFF" />
-              <rect x="344" y="200" width="22" height="34" rx="11" fill="#FFFFFF" />
-              <polygon points="80,345 432,345 420,370 92,370" fill="#1E293B" stroke="#E6007E" strokeWidth="3" />
-            </svg>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-[#0F172A] tracking-wide font-['Playfair_Display',serif]">
-            PALACIO DE BELLEZA
-          </h1>
-          <p className="text-sm md:text-base text-[#E6007E] font-['Alex_Brush',cursive] italic mt-0.5">
-            Muebles y artículos de belleza
-          </p>
+          <img
+            src={LOGO_URL}
+            alt="Palacio de Belleza"
+            className="h-28 sm:h-36 md:h-44 w-auto max-w-full object-contain select-none drop-shadow-sm"
+            loading="eager"
+          />
         </div>
 
         {/* 
           Acceso por Roles en Inicio (Cuadrícula 2 Columnas Móvil / 4 Columnas Escritorio):
           Selector limpio con tarjetas independientes para cada rol. Sin header, sin descripciones, solo nombre del rol.
         */}
+
         <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {rolesList.map((item) => (
             <button
