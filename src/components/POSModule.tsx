@@ -117,9 +117,10 @@ export const POSModule: React.FC<POSModuleProps> = ({
     }
   };
 
-  // Filtered products list
+  // Filtered products list (Excludes deactivated products from POS sales)
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
+      if (p.isActive === false) return false;
       const matchCat =
         selectedCategory === 'Todos' || p.category === selectedCategory;
       const matchSearch =
@@ -128,6 +129,7 @@ export const POSModule: React.FC<POSModuleProps> = ({
       return matchCat && matchSearch;
     });
   }, [products, selectedCategory, searchTerm]);
+
 
   // Cart operations
   const addToCart = (product: Product) => {

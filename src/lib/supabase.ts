@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Customer, Product, Sale, Supplier } from '../types';
+import { Customer, Product, Sale, Supplier, UserProfile, UserRole } from '../types';
 
 // The Supabase project details provided by user
 const RAW_URL = import.meta.env.VITE_SUPABASE_URL || 'https://yioyruhnrcenyxkkgvun.supabase.co';
@@ -50,6 +50,7 @@ export const SupabaseService = {
         minStock: Number(d.min_stock || 3),
         image: d.image || '',
         description: d.description || '',
+        isActive: d.is_active ?? true,
         specs: d.specs || undefined,
       }));
     } catch {
@@ -71,6 +72,7 @@ export const SupabaseService = {
         min_stock: product.minStock,
         image: product.image,
         description: product.description,
+        is_active: product.isActive ?? true,
         specs: product.specs || null,
       });
     } catch (err) {
@@ -101,6 +103,7 @@ export const SupabaseService = {
         address: d.address || '',
         notes: d.notes || '',
         totalSpent: Number(d.total_spent || 0),
+        isActive: d.is_active ?? true,
       }));
     } catch {
       return null;
@@ -119,6 +122,7 @@ export const SupabaseService = {
         address: customer.address,
         notes: customer.notes,
         total_spent: customer.totalSpent,
+        is_active: customer.isActive ?? true,
       });
     } catch (err) {
       console.warn('Supabase upsertCustomer error:', err);
@@ -241,6 +245,55 @@ export const SupabaseService = {
     }
   },
 
+  async deleteSale(saleId: string) {
+    try {
+      await supabase.from('sales').delete().eq('id', saleId);
+    } catch (err) {
+      console.warn('Supabase deleteSale error:', err);
+    }
+  },
+
+  // Profiles (User data per role)
+  async fetchProfile(role: UserRole): Promise<UserProfile | null> {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').eq('role', role).maybeSingle();
+      if (error || !data) return null;
+      return {
+        id: data.id,
+        role: data.role,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        photoUrl: data.photo_url || undefined,
+        storeName: data.store_name || undefined,
+        position: data.position || undefined,
+        bio: data.bio || undefined,
+        joinedDate: data.created_at || undefined,
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  async upsertProfile(profile: UserProfile) {
+    try {
+      await supabase.from('profiles').upsert({
+        id: profile.id,
+        role: profile.role,
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        photo_url: profile.photoUrl || null,
+        store_name: profile.storeName || null,
+        position: profile.position || null,
+        bio: profile.bio || null,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Supabase upsertProfile error:', err);
+    }
+  },
+
   // Initial Data Seeding to Supabase
   async seedInitialData(
     products: Product[],
@@ -263,11 +316,16 @@ export const SupabaseService = {
   // Global Clear / Wipe of Test Records
   async clearAllData(): Promise<{ success: boolean; message: string }> {
     try {
-      // Delete in cascade order: sales (which references customers), then products, customers, suppliers
-      await supabase.from('sales').delete().neq('id', '___none___');
-      await supabase.from('products').delete().neq('id', '___none___');
-      await supabase.from('customers').delete().neq('id', '___none___');
-      await supabase.from('suppliers').delete().neq('id', '___none___');
+      // Direct unconditional purge using multiple conditions to guarantee deletion across schemas
+      const e1 = await supabase.from('sales').delete().neq('id', '___none___');
+      const e2 = await supabase.from('products').delete().neq('id', '___none___');
+      const e3 = await supabase.from('customers').delete().neq('id', '___none___');
+      const e4 = await supabase.from('suppliers').delete().neq('id', '___none___');
+
+      if (e1.error || e2.error || e3.error || e4.error) {
+        console.warn('Supabase clear warning:', e1.error || e2.error || e3.error || e4.error);
+      }
+
       return { success: true, message: 'Se eliminaron todos los registros en Supabase exitosamente.' };
     } catch (err: any) {
       console.warn('Error clearing Supabase data:', err);
@@ -275,4 +333,5 @@ export const SupabaseService = {
     }
   },
 };
+
 

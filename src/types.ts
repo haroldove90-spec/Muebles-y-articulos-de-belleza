@@ -19,6 +19,7 @@ export interface Product {
   minStock: number;
   image: string;
   description?: string;
+  isActive?: boolean;
   specs?: {
     dimensions?: string;
     material?: string;
@@ -67,6 +68,7 @@ export interface Customer {
   address: string;
   notes?: string;
   totalSpent: number;
+  isActive?: boolean;
 }
 
 export interface Supplier {
@@ -81,4 +83,18 @@ export interface Supplier {
   isActive: boolean;
 }
 
-export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics';
+export interface UserProfile {
+  id: string;
+  role: UserRole;
+  name: string;
+  email: string;
+  phone: string;
+  photoUrl?: string;
+  storeName?: string;
+  position?: string;
+  bio?: string;
+  joinedDate?: string;
+}
+
+export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics' | 'profile';
+

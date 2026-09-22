@@ -14,6 +14,7 @@ import {
   CheckCircle,
   FileSpreadsheet,
   X,
+  Trash2,
 } from 'lucide-react';
 
 interface SalesModuleProps {
@@ -21,6 +22,7 @@ interface SalesModuleProps {
   currentRole: UserRole;
   onReprintSale: (sale: Sale) => void;
   onCancelSale: (saleId: string, reason: string) => void;
+  onDeleteSale?: (saleId: string) => void;
 }
 
 export const SalesModule: React.FC<SalesModuleProps> = ({
@@ -28,7 +30,9 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
   currentRole,
   onReprintSale,
   onCancelSale,
+  onDeleteSale,
 }) => {
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todos' | 'Completada' | 'Cancelada'>('Todos');
   const [cancelModalSale, setCancelModalSale] = useState<Sale | null>(null);
@@ -236,13 +240,29 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                         {s.status === 'Completada' && (currentRole === 'Admin' || currentRole === 'Gerente') && (
                           <button
                             onClick={() => setCancelModalSale(s)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition"
                             title="Cancelar / Reembolsar venta"
                           >
                             <RotateCcw className="w-4 h-4" />
                           </button>
                         )}
+
+                        {/* Borrar registro de venta (Solo Admin y Gerente) */}
+                        {(currentRole === 'Admin' || currentRole === 'Gerente') && onDeleteSale && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`¿Eliminar definitivamente el registro de la venta con folio "${s.folio}"?`)) {
+                                onDeleteSale(s.id);
+                              }
+                            }}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Eliminar venta del sistema"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
+
                     </td>
                   </tr>
                 ))

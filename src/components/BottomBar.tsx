@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveModule, UserRole } from '../types';
-import { ShoppingCart, Package, Users, Truck, ReceiptText, BarChart3 } from 'lucide-react';
+import { ShoppingCart, Package, Users, Truck, ReceiptText, BarChart3, UserCircle } from 'lucide-react';
 
 interface BottomBarProps {
   activeModule: ActiveModule;
@@ -46,15 +46,20 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     },
     {
       id: 'sales',
-      label: currentRole === 'Pos: ventas' ? 'Mis Ventas' : 'Ventas',
+      label: currentRole === 'Pos: ventas' ? 'Ventas' : 'Ventas',
       icon: <ReceiptText className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
+    },
+    {
+      id: 'profile',
+      label: 'Perfil',
+      icon: <UserCircle className="w-5 h-5" />,
       allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
     },
   ];
 
-  const visibleModules = allModules
-    .filter((m) => m.allowedRoles.includes(currentRole))
-    .slice(0, 5); // Clean touch items for thumb zone
+  const visibleModules = allModules.filter((m) => m.allowedRoles.includes(currentRole));
+
 
   return (
     <nav
@@ -85,9 +90,10 @@ export const BottomBar: React.FC<BottomBarProps> = ({
               >
                 {item.icon}
               </div>
-              <span className="text-[11px] leading-tight tracking-tight mt-0.5 truncate max-w-[70px]">
+              <span className="text-[10px] sm:text-[11px] leading-tight tracking-tight mt-0.5 truncate">
                 {item.label}
               </span>
+
               {isActive && (
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E6007E] mt-0.5" />
               )}

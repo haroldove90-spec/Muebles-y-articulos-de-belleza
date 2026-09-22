@@ -14,6 +14,9 @@ import {
   X,
   UploadCloud,
   ImageIcon,
+  Power,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface ProductsModuleProps {
@@ -23,6 +26,7 @@ interface ProductsModuleProps {
   onDeleteProduct: (productId: string) => void;
 }
 
+
 export const ProductsModule: React.FC<ProductsModuleProps> = ({
   products,
   onAddProduct,
@@ -31,6 +35,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [statusFilter, setStatusFilter] = useState<'Todos' | 'Activos' | 'Inactivos'>('Todos');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -51,7 +56,9 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
     minStock: 3,
     image: '',
     description: '',
+    isActive: true,
   });
+
 
   const categories: (ProductCategory | 'Todos')[] = [
     'Todos',
@@ -147,6 +154,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
       minStock: 3,
       image: '',
       description: '',
+      isActive: true,
     });
     setShowModal(true);
   };
@@ -155,7 +163,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   const handleOpenEdit = (p: Product) => {
     setEditingProduct(p);
     setShowUrlInput(false);
-    setFormData({ ...p });
+    setFormData({ ...p, isActive: p.isActive !== false });
     setShowModal(true);
   };
 
@@ -175,6 +183,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
         wholesalePrice: Number(formData.wholesalePrice || 0),
         stock: Number(formData.stock || 0),
         minStock: Number(formData.minStock || 0),
+        isActive: formData.isActive !== false,
       } as Product);
     } else {
       const newProd: Product = {
@@ -189,6 +198,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
         minStock: Number(formData.minStock || 0),
         image: formData.image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80',
         description: formData.description || '',
+        isActive: formData.isActive !== false,
       };
       onAddProduct(newProd);
     }
@@ -197,12 +207,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   };
 
   const filtered = products.filter((p) => {
+    const isAct = p.isActive !== false;
+    const matchStatus =
+      statusFilter === 'Todos' ||
+      (statusFilter === 'Activos' && isAct) ||
+      (statusFilter === 'Inactivos' && !isAct);
     const matchCat = selectedCategory === 'Todos' || p.category === selectedCategory;
     const matchSearch =
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchCat && matchSearch;
+    return matchStatus && matchCat && matchSearch;
   });
+
 
   // KPI Metrics
   const totalStockItems = products.reduce((acc, p) => acc + p.stock, 0);
@@ -283,7 +299,24 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto pb-1 sm:pb-0 text-xs font-semibold">
+          {/* Status filters */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl mr-2">
+            {(['Todos', 'Activos', 'Inactivos'] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-2.5 py-1 rounded-lg transition cursor-pointer text-[11px] font-bold ${
+                  statusFilter === st
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+
           {categories.map((c) => (
             <button
               key={c}
@@ -318,11 +351,17 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((item) => {
+                const isActive = item.isActive !== false;
                 const isOutOfStock = item.stock <= 0;
                 const isLowStock = item.stock > 0 && item.stock <= item.minStock;
 
                 return (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                  <tr
+                    key={item.id}
+                    className={`hover:bg-slate-50/80 transition ${
+                      !isActive ? 'bg-slate-50/60 opacity-75' : ''
+                    }`}
+                  >
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <img
@@ -333,7 +372,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                         />
                         <div className="min-w-0">
                           <p className="font-bold text-[#0F172A] truncate max-w-xs">{item.name}</p>
-                          <p className="text-[10px] font-mono text-slate-500">{item.sku}</p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono text-slate-500">{item.sku}</span>
+                            {!isActive && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-600">
+                                Desactivado
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -356,7 +402,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                       <span className="text-[10px] text-slate-400 block">mín. {item.minStock}</span>
                     </td>
                     <td className="py-3 px-3 text-center">
-                      {isOutOfStock ? (
+                      {!isActive ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
+                          <Power className="w-3 h-3 text-slate-400" />
+                          Inactivo
+                        </span>
+                      ) : isOutOfStock ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 text-[10px] font-bold">
                           Agotado
                         </span>
@@ -374,20 +425,38 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* Activar / Desactivar Toggle */}
+                        <button
+                          onClick={() => {
+                            onUpdateProduct({
+                              ...item,
+                              isActive: !isActive,
+                            });
+                          }}
+                          className={`p-1.5 rounded-lg transition cursor-pointer ${
+                            isActive
+                              ? 'text-slate-500 hover:text-amber-700 hover:bg-amber-50'
+                              : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                          }`}
+                          title={isActive ? 'Desactivar producto (ocultar de venta en POS)' : 'Reactivar producto en catálogo'}
+                        >
+                          {isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                        </button>
+
                         <button
                           onClick={() => handleOpenEdit(item)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
                           title="Editar producto"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`¿Eliminar producto "${item.name}" del catálogo?`)) {
+                            if (confirm(`¿Eliminar producto "${item.name}" definitivamente del catálogo?`)) {
                               onDeleteProduct(item.id);
                             }
                           }}
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                           title="Eliminar producto"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -618,7 +687,26 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
                   />
                 </div>
+
+                <div className="sm:col-span-2 bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">Estado del Producto</span>
+                    <span className="text-[11px] text-slate-500">
+                      {formData.isActive !== false ? 'Activo (Visible para venta en mostrador/POS)' : 'Inactivo (Oculto en catálogo POS)'}
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.isActive !== false}
+                      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16A34A]"></div>
+                  </label>
+                </div>
               </div>
+
 
               <div className="flex gap-2 pt-3 border-t border-slate-200">
                 <button

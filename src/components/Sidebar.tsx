@@ -13,6 +13,7 @@ import {
   Sparkles,
   Database,
   Trash2,
+  UserCircle,
 } from 'lucide-react';
 import { PWAInstallModal } from './PWAInstallModal';
 
@@ -94,7 +95,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: <ReceiptText className="w-5 h-5" />,
       allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
     },
+    {
+      id: 'profile',
+      label: 'Mi Perfil',
+      description: 'Datos personales y foto del usuario',
+      icon: <UserCircle className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
+    },
   ];
+
 
   return (
     <aside

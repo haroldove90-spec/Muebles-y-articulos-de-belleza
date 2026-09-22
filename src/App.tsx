@@ -23,6 +23,7 @@ import { CustomersModule } from './components/CustomersModule';
 import { SuppliersModule } from './components/SuppliersModule';
 import { SalesModule } from './components/SalesModule';
 import { MetricsModule } from './components/MetricsModule';
+import { ProfileModule } from './components/ProfileModule';
 import { ReceiptModal } from './components/ReceiptModal';
 import { SupabaseModal } from './components/SupabaseModal';
 import { GlobalClearModal } from './components/GlobalClearModal';
@@ -278,7 +279,14 @@ export default function App() {
     alert(`Venta ${saleToCancel.folio} cancelada. Inventario restituido con éxito.`);
   };
 
+  // Handle Permanent Sale Deletion (Admin & Gerente)
+  const handleDeleteSale = (saleId: string) => {
+    setSales((prev) => prev.filter((s) => s.id !== saleId));
+    SupabaseService.deleteSale(saleId);
+  };
+
   // Quick Action from Marketplace: Add to POS and navigate
+
   const handleAddToCartAndGoPOS = (product: Product) => {
     setActiveModule('pos');
   };
@@ -336,6 +344,7 @@ export default function App() {
         sidebarOpen={!sidebarCollapsed}
         onOpenSupabase={() => setShowSupabaseModal(true)}
         onOpenGlobalClear={() => setShowGlobalClearModal(true)}
+        onOpenProfile={() => setActiveModule('profile')}
       />
 
       {/* Main Layout Area: Desktop Sidebar + Central Workspace + Mobile Bottom Bar */}
@@ -398,6 +407,7 @@ export default function App() {
               currentRole={currentRole}
               onReprintSale={(sale) => setActiveReceiptSale(sale)}
               onCancelSale={handleCancelSale}
+              onDeleteSale={handleDeleteSale}
             />
           )}
 
@@ -409,7 +419,17 @@ export default function App() {
               onDeleteSupplier={handleDeleteSupplier}
             />
           )}
+
+          {activeModule === 'profile' && (
+            <ProfileModule
+              currentRole={currentRole}
+              sales={sales}
+              onLogout={handleLogout}
+            />
+          )}
+
         </main>
+
       </div>
 
       {/* Mobile & Tablet Fixed Bottom Bar */}

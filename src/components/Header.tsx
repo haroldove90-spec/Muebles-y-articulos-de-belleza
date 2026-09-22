@@ -11,6 +11,7 @@ interface HeaderProps {
   sidebarOpen?: boolean;
   onOpenSupabase?: () => void;
   onOpenGlobalClear?: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,7 +21,9 @@ export const Header: React.FC<HeaderProps> = ({
   sidebarOpen,
   onOpenSupabase,
   onOpenGlobalClear,
+  onOpenProfile,
 }) => {
+
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'Admin':
@@ -74,14 +77,17 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: Active Role Badge, Desktop Management Tools, and Logout */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Identificación del Rol Activo */}
-        <div
+        {/* Identificación del Rol Activo / Acceso Rápido a Perfil */}
+        <button
           id="active-role-indicator"
-          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold border shrink-0 ${badge.bg}`}
+          onClick={onOpenProfile}
+          title="Ver y actualizar mi perfil de usuario"
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold border shrink-0 transition hover:opacity-90 active:scale-95 cursor-pointer ${badge.bg}`}
         >
           {badge.icon}
           <span className="capitalize">{currentRole}</span>
-        </div>
+        </button>
+
 
         {/* Botón de Enlace Supabase (Exclusivo Admin/Gerente en pantallas amplias) */}
         {canManageSystem && onOpenSupabase && (

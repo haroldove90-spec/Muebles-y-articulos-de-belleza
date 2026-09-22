@@ -1,6 +1,6 @@
 -- ==============================================================================
--- PALACIO DE BELLEZA - ESQUEMA DE BASE DE DATOS PARA SUPABASE
--- Proyecto ID: yioyruhnrcenyxkkgvun
+-- PALACIO DE BELLEZA - ESQUEMA DE BASE DE DATOS PARA SUPABASE (ACTUALIZADO)
+-- Incluye: is_active en Productos, Clientes y Proveedores + Tabla Profiles
 -- ==============================================================================
 
 -- 1. TABLA: PRODUCTOS E INVENTARIO
@@ -17,8 +17,12 @@ CREATE TABLE IF NOT EXISTS public.products (
     image TEXT,
     description TEXT,
     specs JSONB,
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- Si la tabla ya existía, asegurar la columna is_active
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- 2. TABLA: CLIENTES Y SALONES DE BELLEZA
 CREATE TABLE IF NOT EXISTS public.customers (
@@ -31,8 +35,12 @@ CREATE TABLE IF NOT EXISTS public.customers (
     address TEXT,
     notes TEXT,
     total_spent NUMERIC(12, 2) DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+-- Si la tabla ya existía, asegurar la columna is_active
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
 -- 3. TABLA: PROVEEDORES Y FABRICANTES
 CREATE TABLE IF NOT EXISTS public.suppliers (
@@ -48,6 +56,9 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- Si la tabla ya existía, asegurar la columna is_active
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
 -- 4. TABLA: VENTAS Y TICKETS (POS)
 CREATE TABLE IF NOT EXISTS public.sales (
     id TEXT PRIMARY KEY,
@@ -56,7 +67,7 @@ CREATE TABLE IF NOT EXISTS public.sales (
     cashier_role TEXT NOT NULL,
     cashier_name TEXT NOT NULL,
     customer_name TEXT NOT NULL,
-    customer_id TEXT REFERENCES public.customers(id) ON DELETE SET NULL,
+    customer_id TEXT,
     items JSONB NOT NULL,
     subtotal NUMERIC(12, 2) NOT NULL,
     discount_total NUMERIC(12, 2) DEFAULT 0,
@@ -69,14 +80,33 @@ CREATE TABLE IF NOT EXISTS public.sales (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 5. TABLA: PERFILES DE USUARIO (DATOS PERSONALES Y FOTO POR ROL)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id TEXT PRIMARY KEY,
+    role TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    photo_url TEXT,
+    store_name TEXT DEFAULT 'Palacio de Belleza - Sucursal Matriz',
+    position TEXT,
+    bio TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- ==============================================================================
 -- ÍNDICES PARA BÚSQUEDAS RÁPIDAS
 -- ==============================================================================
 CREATE INDEX IF NOT EXISTS idx_products_sku ON public.products(sku);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
+CREATE INDEX IF NOT EXISTS idx_products_active ON public.products(is_active);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON public.customers(phone);
+CREATE INDEX IF NOT EXISTS idx_customers_active ON public.customers(is_active);
+CREATE INDEX IF NOT EXISTS idx_suppliers_active ON public.suppliers(is_active);
 CREATE INDEX IF NOT EXISTS idx_sales_folio ON public.sales(folio);
 CREATE INDEX IF NOT EXISTS idx_sales_date ON public.sales(date DESC);
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
 
 -- ==============================================================================
 -- SEGURIDAD (ROW LEVEL SECURITY) Y POLÍTICAS PÚBLICAS PARA POS CLIENT
@@ -85,6 +115,7 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para Products
 CREATE POLICY "Permitir lectura publica products" ON public.products FOR SELECT TO anon, authenticated USING (true);
@@ -110,38 +141,56 @@ CREATE POLICY "Permitir insercion publica sales" ON public.sales FOR INSERT TO a
 CREATE POLICY "Permitir actualizacion publica sales" ON public.sales FOR UPDATE TO anon, authenticated USING (true);
 CREATE POLICY "Permitir eliminacion publica sales" ON public.sales FOR DELETE TO anon, authenticated USING (true);
 
+-- Políticas para Profiles
+CREATE POLICY "Permitir lectura publica profiles" ON public.profiles FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Permitir insercion publica profiles" ON public.profiles FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Permitir actualizacion publica profiles" ON public.profiles FOR UPDATE TO anon, authenticated USING (true);
+CREATE POLICY "Permitir eliminacion publica profiles" ON public.profiles FOR DELETE TO anon, authenticated USING (true);
+
 -- ==============================================================================
--- DATOS INICIALES (SEMILLA DEL CATÁLOGO DE PALACIO DE BELLEZA)
+-- INSERCIÓN DE PERFILES PREESTABLECIDOS POR ROL
 -- ==============================================================================
-
--- 1. Insertar Productos
-INSERT INTO public.products (id, name, sku, category, price, cost_price, wholesale_price, stock, min_stock, image, description, specs)
+INSERT INTO public.profiles (id, role, name, email, phone, photo_url, store_name, position, bio)
 VALUES
-('prod-1', 'Sillón Hidráulico Roma Premium', 'PB-MOB-001', 'Mobiliario', 4850.00, 2900.00, 4200.00, 8, 2, 'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&w=600&q=80', 'Sillón ergonómico de corte profesional con bomba hidráulica de uso rudo, rotación 360 grados y freno de bloqueo.', '{"warranty": "2 años de garantía en bomba", "dimensions": "95 x 65 x 85 cm", "hydraulic": true, "material": "Vinil antibacterial de alta resistencia"}'),
-('prod-2', 'Lavacabezas Ergonómico Milán', 'PB-MOB-002', 'Mobiliario', 6200.00, 3800.00, 5400.00, 5, 2, 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80', 'Lavacabezas con tina basculante de cerámica blanca esmaltada, grifería monomando cromada y asiento acojinado.', '{"warranty": "3 años en estructura y cerámica", "dimensions": "115 x 62 x 98 cm", "material": "Cerámica esmaltada y estructura de fibra"}'),
-('prod-3', 'Secadora Profesional Ionic Turbo 3800', 'PB-APA-101', 'Aparatos', 1890.00, 1050.00, 1650.00, 15, 4, 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80', 'Secadora de 2400W con tecnología de iones negativos para sellado de cutícula capilar.', '{"voltage": "110V - 127V", "warranty": "1 año", "power": "2400W"}'),
-('prod-4', 'Plancha Titanium Pro Nano Glider', 'PB-APA-102', 'Aparatos', 1650.00, 920.00, 1420.00, 12, 3, 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&w=600&q=80', 'Placas de titanio ultra pulido de 1.25 pulgadas con calentamiento instantáneo hasta 450°F.', '{"voltage": "Bivoltaje 110-220V", "warranty": "1 año"}'),
-('prod-5', 'Tinte Permanente Keratin Color 100ml', 'PB-TIN-201', 'Tintes y Cuidado', 125.00, 68.00, 98.00, 45, 10, 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80', 'Coloración en crema con bajo contenido en amoníaco, enriquecido con keratina pura.', '{"volume": "100 ml", "origin": "Italia"}'),
-('prod-6', 'Tratamiento Mascarilla Argán & Macadamia 1kg', 'PB-TIN-202', 'Tintes y Cuidado', 480.00, 260.00, 390.00, 20, 5, 'https://images.unsplash.com/photo-1608248597359-00204732152a?auto=format&fit=crop&w=600&q=80', 'Mascarilla intensiva reconstructora para cabello procesado o decolorado.', '{"volume": "1000 gr"}'),
-('prod-7', 'Combo Apertura Salón Bronce', 'PB-COM-301', 'Combos y Promos', 11999.00, 7500.00, 10999.00, 3, 1, 'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=600&q=80', 'Paquete ideal para salón nuevo: 1 Sillón Roma + 1 Secadora Turbo + 1 Plancha Titanium + Kit de 10 tintes.', '{"includes": "1 Sillón + 1 Secadora + 1 Plancha + 10 Tintes", "savings": "Ahorro del 18%"}'),
-('prod-8', 'Lámpara UV/LED Nails Pro Sun X5 54W', 'PB-UNA-401', 'Uñas y Estética', 590.00, 310.00, 490.00, 18, 4, 'https://images.unsplash.com/photo-1604654894610-df63bc536371?auto=format&fit=crop&w=600&q=80', 'Lámpara de secado rápido para esmalte semipermanente, gel y acrílico con sensor infrarrojo inteligente.', '{"power": "54 Watts", "warranty": "6 meses"}')
-ON CONFLICT (id) DO NOTHING;
-
--- 2. Insertar Clientes
-INSERT INTO public.customers (id, name, business_name, phone, email, tier, address, notes, total_spent)
-VALUES
-('cust-1', 'Brenda Alcaraz', 'Estudio Glamour VIP', '55-1234-5678', 'brenda@studioglamour.com', 'VIP', 'Av. Presidente Masaryk 340, Polanco, CDMX', 'Cliente frecuente de sillones y tintes premium', 48500.00),
-('cust-2', 'Carlos Méndez', 'Barbería El Bigote Elegante', '55-9876-5432', 'carlos@elbigote.mx', 'Mayorista', 'Calle Orizaba 89, Col. Roma Norte, CDMX', 'Compra mobiliario y navajas al mayoreo', 32400.00),
-('cust-3', 'Valeria Guzmán', 'Academia de Belleza Alta Moda', '55-4433-2211', 'direccion@altamoda.edu.mx', 'Mayorista', 'Calz. de Tlalpan 1890, CDMX', 'Equipamiento continuo para 40 alumnas', 67800.00),
-('cust-4', 'Sofía Castillo', 'Studio Spa & Nails Sofía', '55-8899-7766', 'sofia@spasofia.com', 'Regular', 'Av. Universidad 1200, Coyoacán, CDMX', 'Compra productos de uñas y aparatos', 8900.00),
-('cust-5', 'Público Mostrador', 'Mostrador General', '55-0000-0000', 'ventas@palaciodebelleza.com', 'Regular', 'Tienda Central Palacio de Belleza', 'Venta a clientes de paso sin cuenta', 12500.00)
-ON CONFLICT (id) DO NOTHING;
-
--- 3. Insertar Proveedores
-INSERT INTO public.suppliers (id, company_name, contact_person, phone, email, category, city, credit_days, is_active)
-VALUES
-('sup-1', 'Muebles Spa & Salón de México S.A.', 'Ing. Roberto Fuentes', '55-5566-7788', 'ventas@mueblespasalon.com.mx', 'Mobiliario para Peluquería y Estética', 'Guadalajara, Jal.', 30, true),
-('sup-2', 'Laboratorios Cosméticos Bellissima', 'Lic. Mariana Cordero', '55-3322-1100', 'pedidos@bellissima-lab.mx', 'Tintes, Decolorantes y Keratinas', 'Ciudad de México', 15, true),
-('sup-3', 'Importadora Eléctricos BarberPro', 'Sr. Kenji Tanaka', '55-7788-9900', 'contacto@barberpro-import.com', 'Aparatos Eléctricos y Secadoras', 'Monterrey, N.L.', 45, true),
-('sup-4', 'Distribuidora Golden Nails', 'Sra. Patricia Lugo', '55-6677-8899', 'ventas@goldennails.mx', 'Acrílicos, Geles y Lámparas UV', 'Puebla, Pue.', 30, true)
-ON CONFLICT (id) DO NOTHING;
+(
+    'user-admin',
+    'Admin',
+    'Lic. Mariana Valdez',
+    'administracion@palaciodebelleza.mx',
+    '+52 55 4123 8900',
+    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
+    'Palacio de Belleza - Matriz',
+    'Directora General y Administradora',
+    'Responsable de compras corporativas, catálogo mayorista y gobierno de la plataforma.'
+),
+(
+    'user-gerente',
+    'Gerente',
+    'Ing. Roberto Carvajal',
+    'gerencia@palaciodebelleza.mx',
+    '+52 55 8920 1144',
+    'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=400&q=80',
+    'Palacio de Belleza - Matriz',
+    'Gerente Operativo y de Sucursal',
+    'Supervisión de piso, inventarios críticos, cumplimiento de metas diarias y arqueos de caja.'
+),
+(
+    'user-pos',
+    'Pos: ventas',
+    'Ana Lucía Morales',
+    'caja.mostrador@palaciodebelleza.mx',
+    '+52 55 2390 4455',
+    'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
+    'Palacio de Belleza - Matriz',
+    'Cajera Principal / Asesora de Ventas',
+    'Atención al cliente en mostrador, facturación express y emisión de tickets térmicos.'
+)
+ON CONFLICT (role) DO UPDATE SET
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    phone = EXCLUDED.phone,
+    photo_url = EXCLUDED.photo_url,
+    store_name = EXCLUDED.store_name,
+    position = EXCLUDED.position,
+    bio = EXCLUDED.bio,
+    updated_at = NOW();
