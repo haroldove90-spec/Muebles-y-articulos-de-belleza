@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Background subtle rounded base -->
+    <linearGradient id="castleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF2A9D"/>
+      <stop offset="50%" stop-color="#E6007E"/>
+      <stop offset="100%" stop-color="#B8005E"/>
+    </linearGradient>
+    <linearGradient id="castleHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="blackBase" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2D3748"/>
+      <stop offset="60%" stop-color="#1A202C"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="pinkGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF2A9D"/>
+      <stop offset="50%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E6007E"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background tile for icon -->
+  <rect width="512" height="512" rx="108" fill="#0A0C10"/>
+
+  <!-- Subtle glow behind castle -->
+  <circle cx="256" cy="230" r="170" fill="#E6007E" opacity="0.25" filter="url(#glow)"/>
+
+  <!-- Left outer wing tower -->
+  <path d="M96 220 L130 220 L130 190 L140 190 L140 205 L150 205 L150 190 L160 190 L160 310 L96 310 Z" fill="url(#castleGrad)" stroke="#B8005E" stroke-width="3"/>
+  <rect x="110" y="235" width="16" height="24" rx="8" fill="#FFFFFF" stroke="#4A0429" stroke-width="2"/>
+
+  <!-- Right outer wing tower -->
+  <path d="M352 190 L362 190 L362 205 L372 205 L372 190 L382 190 L382 220 L416 220 L416 310 L352 310 Z" fill="url(#castleGrad)" stroke="#B8005E" stroke-width="3"/>
+  <rect x="386" y="235" width="16" height="24" rx="8" fill="#FFFFFF" stroke="#4A0429" stroke-width="2"/>
+
+  <!-- Left Main Watchtower -->
+  <path d="M128 110 L142 110 L142 125 L154 125 L154 110 L168 110 L168 125 L180 125 L180 110 L194 110 L194 140 L204 150 L204 320 L118 320 L118 150 L128 140 Z" fill="url(#castleGrad)" stroke="#FF85C4" stroke-width="3"/>
+  <rect x="146" y="165" width="22" height="34" rx="11" fill="#FFFFFF" stroke="#4A0429" stroke-width="2.5"/>
+  <line x1="157" y1="165" x2="157" y2="199" stroke="#4A0429" stroke-width="2"/>
+  <line x1="146" y1="182" x2="168" y2="182" stroke="#4A0429" stroke-width="2"/>
+
+  <!-- Right Main Watchtower -->
+  <path d="M318 110 L332 110 L332 125 L344 125 L344 110 L358 110 L358 125 L370 125 L370 110 L384 110 L384 140 L394 150 L394 320 L308 320 L308 150 L318 140 Z" fill="url(#castleGrad)" stroke="#FF85C4" stroke-width="3"/>
+  <rect x="344" y="165" width="22" height="34" rx="11" fill="#FFFFFF" stroke="#4A0429" stroke-width="2.5"/>
+  <line x1="355" y1="165" x2="355" y2="199" stroke="#4A0429" stroke-width="2"/>
+  <line x1="344" y1="182" x2="366" y2="182" stroke="#4A0429" stroke-width="2"/>
+
+  <!-- Center Castle Main Gate / Wall -->
+  <path d="M192 185 L208 185 L208 200 L224 200 L224 185 L240 185 L240 200 L256 200 L256 185 L272 185 L272 200 L288 200 L288 185 L304 185 L304 200 L320 200 L320 320 L192 320 Z" fill="url(#castleGrad)" stroke="#FF85C4" stroke-width="2"/>
+
+  <!-- Center Pavilion with gabled roof -->
+  <polygon points="256,170 310,215 310,325 202,325 202,215" fill="#C20067" stroke="#FF4DA8" stroke-width="3"/>
+  <polygon points="256,182 298,218 298,320 214,320 214,218" fill="url(#castleGrad)"/>
+  
+  <!-- Center Main Window -->
+  <rect x="242" y="235" width="28" height="42" rx="14" fill="#FFFFFF" stroke="#4A0429" stroke-width="3"/>
+  <line x1="256" y1="235" x2="256" y2="277" stroke="#4A0429" stroke-width="2.5"/>
+  <line x1="242" y1="256" x2="270" y2="256" stroke="#4A0429" stroke-width="2.5"/>
+
+  <!-- Metallic Chrome Pedestal Platform -->
+  <polygon points="60,335 452,335 440,360 72,360" fill="url(#blackBase)" stroke="#E6007E" stroke-width="2.5"/>
+  <rect x="52" y="333" width="408" height="4" fill="url(#pinkGlow)"/>
+
+  <!-- Brand Typography -->
+  <text x="256" y="405" font-family="'Playfair Display', serif, system-ui" font-weight="800" font-size="28" fill="#FFFFFF" text-anchor="middle" letter-spacing="4" stroke="#000000" stroke-width="1.5">PALACIO DE BELLEZA</text>
+  <text x="256" y="445" font-family="'Alex Brush', cursive, 'Brush Script MT', sans-serif" font-size="25" fill="#FF4DA8" text-anchor="middle" letter-spacing="1">Muebles y artículos de belleza</text>
+</svg>

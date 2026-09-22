@@ -1,0 +1,6 @@
+{
+  "name": "Palacio de Belleza",
+  "description": "Sistema de Punto de Venta para Palacio de Belleza - Muebles y artículos de belleza con módulos POS, Marketplace, Proveedores, Clientes, Productos y Ventas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
