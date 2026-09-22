@@ -2,16 +2,17 @@ import React from 'react';
 import { ActiveModule, UserRole } from '../types';
 import {
   ShoppingCart,
-  Store,
   Package,
   Users,
   Truck,
   ReceiptText,
+  BarChart3,
   LogOut,
   ChevronLeft,
   ChevronRight,
   Sparkles,
   Database,
+  Trash2,
 } from 'lucide-react';
 import { PWAInstallModal } from './PWAInstallModal';
 
@@ -23,6 +24,7 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   onLogout: () => void;
   onOpenSupabase?: () => void;
+  onOpenGlobalClear?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
   onLogout,
   onOpenSupabase,
+  onOpenGlobalClear,
 }) => {
   const menuItems: {
     id: ActiveModule;
@@ -42,46 +45,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
     allowedRoles: UserRole[];
   }[] = [
     {
+      id: 'metrics',
+      label: currentRole === 'Pos: ventas' ? 'Corte y Métricas' : 'Métricas',
+      description:
+        currentRole === 'Admin'
+          ? 'KPIs e Inteligencia de Negocio'
+          : currentRole === 'Gerente'
+          ? 'Rendimiento y Metas de Tienda'
+          : 'Arqueo de caja y turno hoy',
+      icon: <BarChart3 className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
+    },
+    {
       id: 'pos',
       label: 'Punto de Venta (POS)',
       description: 'Caja rápida y cobro táctil',
       icon: <ShoppingCart className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
-    },
-    {
-      id: 'marketplace',
-      label: 'Marketplace Showroom',
-      description: 'Catálogo de muebles y artículos',
-      icon: <Store className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
+      allowedRoles: ['Pos: ventas'], // SOLO rol Pos: Ventas
     },
     {
       id: 'products',
-      label: 'Productos e Inventario',
-      description: 'Stock, costos y precios',
+      label: 'Inventario y Productos',
+      description: 'Altas, existencias y precios',
       icon: <Package className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Supervisor'],
+      allowedRoles: ['Admin', 'Gerente'], // Administrado por Gerente y Admin
     },
     {
       id: 'customers',
       label: 'Clientes y Salones',
-      description: 'Directorio y cuentas',
+      description: 'Directorio y cuentas mayoristas',
       icon: <Users className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
-    },
-    {
-      id: 'sales',
-      label: 'Ventas y Cortes',
-      description: 'Historial y Cierre de caja',
-      icon: <ReceiptText className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
+      allowedRoles: ['Admin', 'Gerente'], // Administrado por Gerente y Admin
     },
     {
       id: 'suppliers',
       label: 'Proveedores',
       description: 'Fabricantes y distribuidores',
       icon: <Truck className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente'],
+      allowedRoles: ['Admin', 'Gerente'], // Administrado por Gerente y Admin
+    },
+    {
+      id: 'sales',
+      label: currentRole === 'Pos: ventas' ? 'Ventas del Día' : 'Historial de Ventas',
+      description:
+        currentRole === 'Pos: ventas'
+          ? 'Tickets y ventas de tu turno'
+          : 'Auditoría, cortes y cancelaciones',
+      icon: <ReceiptText className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
     },
   ];
 
@@ -174,6 +185,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Database className="w-4 h-4 text-emerald-600 shrink-0" />
             {!isCollapsed && <span>Supabase Conectado</span>}
+          </button>
+        )}
+
+        {onOpenGlobalClear && (
+          <button
+            id="sidebar-global-clear-btn"
+            onClick={onOpenGlobalClear}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition active:scale-95 cursor-pointer ${
+              isCollapsed ? 'justify-center' : ''
+            }`}
+            title="Borrar registros de prueba de todo el sistema"
+          >
+            <Trash2 className="w-4 h-4 text-red-600 shrink-0" />
+            {!isCollapsed && <span>Borrado Global</span>}
           </button>
         )}
 

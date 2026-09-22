@@ -2,7 +2,7 @@ import React from 'react';
 import { UserRole } from '../types';
 import { Logo } from './Logo';
 import { PWAInstallModal } from './PWAInstallModal';
-import { LogOut, Shield, User, ShoppingBag, Menu, Database } from 'lucide-react';
+import { LogOut, Shield, User, ShoppingBag, Menu, Database, Trash2 } from 'lucide-react';
 
 interface HeaderProps {
   currentRole: UserRole;
@@ -10,6 +10,7 @@ interface HeaderProps {
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   onOpenSupabase?: () => void;
+  onOpenGlobalClear?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   sidebarOpen,
   onOpenSupabase,
+  onOpenGlobalClear,
 }) => {
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
@@ -88,6 +90,19 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Database className="w-3.5 h-3.5 text-emerald-600" />
             <span className="hidden sm:inline">Supabase</span>
+          </button>
+        )}
+
+        {/* Botón de Borrado Global del Sistema */}
+        {onOpenGlobalClear && (
+          <button
+            id="header-global-clear-btn"
+            onClick={onOpenGlobalClear}
+            title="Borrar registros de prueba de todo el sistema"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition active:scale-95 cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+            <span className="hidden md:inline">Borrado Global</span>
           </button>
         )}
 

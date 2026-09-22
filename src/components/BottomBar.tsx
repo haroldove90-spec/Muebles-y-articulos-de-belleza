@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveModule, UserRole } from '../types';
-import { ShoppingCart, Store, Package, Users, Truck, ReceiptText } from 'lucide-react';
+import { ShoppingCart, Package, Users, Truck, ReceiptText, BarChart3 } from 'lucide-react';
 
 interface BottomBarProps {
   activeModule: ActiveModule;
@@ -13,49 +13,48 @@ export const BottomBar: React.FC<BottomBarProps> = ({
   onSelectModule,
   currentRole,
 }) => {
-  // Pos: ventas has access to POS, Marketplace, Clientes, and Ventas
   const allModules: { id: ActiveModule; label: string; icon: React.ReactNode; allowedRoles: UserRole[] }[] = [
     {
       id: 'pos',
       label: 'POS',
       icon: <ShoppingCart className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
+      allowedRoles: ['Pos: ventas'], // SOLO rol Pos: ventas
     },
     {
-      id: 'marketplace',
-      label: 'Catálogo',
-      icon: <Store className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
+      id: 'metrics',
+      label: currentRole === 'Pos: ventas' ? 'Corte' : 'Métricas',
+      icon: <BarChart3 className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
     },
     {
       id: 'products',
       label: 'Inventario',
       icon: <Package className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Supervisor'],
+      allowedRoles: ['Admin', 'Gerente'],
     },
     {
-      id: 'clientes' as any,
+      id: 'customers',
       label: 'Clientes',
       icon: <Users className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
-    },
-    {
-      id: 'sales',
-      label: 'Ventas',
-      icon: <ReceiptText className="w-5 h-5" />,
-      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas', 'Supervisor'],
+      allowedRoles: ['Admin', 'Gerente'],
     },
     {
       id: 'suppliers',
-      label: 'Proveedores',
+      label: 'Proveed.',
       icon: <Truck className="w-5 h-5" />,
       allowedRoles: ['Admin', 'Gerente'],
+    },
+    {
+      id: 'sales',
+      label: currentRole === 'Pos: ventas' ? 'Mis Ventas' : 'Ventas',
+      icon: <ReceiptText className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente', 'Pos: ventas'],
     },
   ];
 
   const visibleModules = allModules
     .filter((m) => m.allowedRoles.includes(currentRole))
-    .slice(0, 5); // Clean 4-5 touch items for thumb zone
+    .slice(0, 5); // Clean touch items for thumb zone
 
   return (
     <nav

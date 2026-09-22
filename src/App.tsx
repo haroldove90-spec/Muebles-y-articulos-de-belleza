@@ -18,13 +18,14 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { BottomBar } from './components/BottomBar';
 import { POSModule } from './components/POSModule';
-import { MarketplaceModule } from './components/MarketplaceModule';
 import { ProductsModule } from './components/ProductsModule';
 import { CustomersModule } from './components/CustomersModule';
 import { SuppliersModule } from './components/SuppliersModule';
 import { SalesModule } from './components/SalesModule';
+import { MetricsModule } from './components/MetricsModule';
 import { ReceiptModal } from './components/ReceiptModal';
 import { SupabaseModal } from './components/SupabaseModal';
+import { GlobalClearModal } from './components/GlobalClearModal';
 import { SupabaseService } from './lib/supabase';
 
 export default function App() {
@@ -34,31 +35,45 @@ export default function App() {
     return (saved as UserRole) || null;
   });
 
-  // Active Module State
-  const [activeModule, setActiveModule] = useState<ActiveModule>('pos');
+  // Active Module State (Role-specific default)
+  const [activeModule, setActiveModule] = useState<ActiveModule>(() => {
+    const savedRole = localStorage.getItem('pb_active_role') as UserRole | null;
+    if (savedRole === 'Pos: ventas') return 'pos';
+    if (savedRole === 'Admin') return 'metrics';
+    if (savedRole === 'Gerente') return 'products';
+    return 'metrics';
+  });
 
   // Sidebar Collapse State on Desktop
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Core Data Collections (Initialized with robust realistic mock data)
+  // Core Data Collections (Initialized with robust realistic mock data or empty if cleared)
   const [products, setProducts] = useState<Product[]>(() => {
+    const hasCleared = localStorage.getItem('pb_cleared_test_data') === 'true';
     const saved = localStorage.getItem('pb_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    if (saved) return JSON.parse(saved);
+    return hasCleared ? [] : INITIAL_PRODUCTS;
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
+    const hasCleared = localStorage.getItem('pb_cleared_test_data') === 'true';
     const saved = localStorage.getItem('pb_customers');
-    return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+    if (saved) return JSON.parse(saved);
+    return hasCleared ? [] : INITIAL_CUSTOMERS;
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    const hasCleared = localStorage.getItem('pb_cleared_test_data') === 'true';
     const saved = localStorage.getItem('pb_suppliers');
-    return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+    if (saved) return JSON.parse(saved);
+    return hasCleared ? [] : INITIAL_SUPPLIERS;
   });
 
   const [sales, setSales] = useState<Sale[]>(() => {
+    const hasCleared = localStorage.getItem('pb_cleared_test_data') === 'true';
     const saved = localStorage.getItem('pb_sales');
-    return saved ? JSON.parse(saved) : INITIAL_SALES;
+    if (saved) return JSON.parse(saved);
+    return hasCleared ? [] : INITIAL_SALES;
   });
 
   // Receipt Modal State
@@ -66,6 +81,9 @@ export default function App() {
 
   // Supabase Sync Modal State
   const [showSupabaseModal, setShowSupabaseModal] = useState(false);
+
+  // Global Clear Modal State
+  const [showGlobalClearModal, setShowGlobalClearModal] = useState(false);
 
   // Sync state to localStorage for persistence
   useEffect(() => {
@@ -121,7 +139,15 @@ export default function App() {
   // Handle Role Selection
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
-    setActiveModule('pos'); // Start immediately in POS on login
+    if (role === 'Pos: ventas') {
+      setActiveModule('pos');
+    } else if (role === 'Admin') {
+      setActiveModule('metrics');
+    } else if (role === 'Gerente') {
+      setActiveModule('products');
+    } else {
+      setActiveModule('metrics');
+    }
   };
 
   // Handle Logout
@@ -257,6 +283,43 @@ export default function App() {
     setActiveModule('pos');
   };
 
+  // Handler: Global Clear / Wipe of Test Records
+  const handleClearAllTestData = async () => {
+    setProducts([]);
+    setCustomers([]);
+    setSuppliers([]);
+    setSales([]);
+    localStorage.setItem('pb_cleared_test_data', 'true');
+    localStorage.setItem('pb_products', '[]');
+    localStorage.setItem('pb_customers', '[]');
+    localStorage.setItem('pb_suppliers', '[]');
+    localStorage.setItem('pb_sales', '[]');
+  };
+
+  // Handler: Restore Initial Defaults Demo Data
+  const handleRestoreDefaults = async (data: {
+    products: Product[];
+    customers: Customer[];
+    suppliers: Supplier[];
+    sales: Sale[];
+  }) => {
+    setProducts(data.products);
+    setCustomers(data.customers);
+    setSuppliers(data.suppliers);
+    setSales(data.sales);
+    localStorage.removeItem('pb_cleared_test_data');
+    localStorage.setItem('pb_products', JSON.stringify(data.products));
+    localStorage.setItem('pb_customers', JSON.stringify(data.customers));
+    localStorage.setItem('pb_suppliers', JSON.stringify(data.suppliers));
+    localStorage.setItem('pb_sales', JSON.stringify(data.sales));
+    await SupabaseService.seedInitialData(
+      data.products,
+      data.customers,
+      data.suppliers,
+      data.sales
+    );
+  };
+
   // 1. Initial State: Role Selector Screen
   if (!currentRole) {
     return <RoleSelector onSelectRole={handleSelectRole} />;
@@ -272,6 +335,7 @@ export default function App() {
         onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
         sidebarOpen={!sidebarCollapsed}
         onOpenSupabase={() => setShowSupabaseModal(true)}
+        onOpenGlobalClear={() => setShowGlobalClearModal(true)}
       />
 
       {/* Main Layout Area: Desktop Sidebar + Central Workspace + Mobile Bottom Bar */}
@@ -285,23 +349,28 @@ export default function App() {
           onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
           onLogout={handleLogout}
           onOpenSupabase={() => setShowSupabaseModal(true)}
+          onOpenGlobalClear={() => setShowGlobalClearModal(true)}
         />
 
         {/* Central Workspace (Render Active Module) */}
         <main className="flex-1 flex flex-col overflow-hidden pb-16 lg:pb-0 relative">
+          {activeModule === 'metrics' && (
+            <MetricsModule
+              sales={sales}
+              products={products}
+              customers={customers}
+              suppliers={suppliers}
+              currentRole={currentRole}
+              onReprintSale={(sale) => setActiveReceiptSale(sale)}
+            />
+          )}
+
           {activeModule === 'pos' && (
             <POSModule
               products={products}
               customers={customers}
               currentRole={currentRole}
               onCompleteSale={handleCompleteSale}
-            />
-          )}
-
-          {activeModule === 'marketplace' && (
-            <MarketplaceModule
-              products={products}
-              onAddToCartAndGoPOS={handleAddToCartAndGoPOS}
             />
           )}
 
@@ -370,12 +439,27 @@ export default function App() {
           customers={customers}
           suppliers={suppliers}
           sales={sales}
+          onOpenGlobalClear={() => setShowGlobalClearModal(true)}
           onDataLoadedFromSupabase={({ products: p, customers: c, suppliers: s, sales: sa }) => {
             if (p) setProducts(p);
             if (c) setCustomers(c);
             if (s) setSuppliers(s);
             if (sa) setSales(sa);
           }}
+        />
+      )}
+
+      {/* Global Clear of Test Records Modal */}
+      {showGlobalClearModal && (
+        <GlobalClearModal
+          isOpen={showGlobalClearModal}
+          onClose={() => setShowGlobalClearModal(false)}
+          products={products}
+          customers={customers}
+          suppliers={suppliers}
+          sales={sales}
+          onClearAll={handleClearAllTestData}
+          onRestoreDefaults={handleRestoreDefaults}
         />
       )}
     </div>

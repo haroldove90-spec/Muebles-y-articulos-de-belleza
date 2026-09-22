@@ -15,6 +15,7 @@ interface RoleCardData {
 }
 
 export const RoleSelector: React.FC<RoleSelectorProps> = ({ onSelectRole }) => {
+  // Rol Supervisor desactivado temporalmente por solicitud del usuario
   const rolesList: RoleCardData[] = [
     {
       role: 'Admin',
@@ -34,12 +35,6 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({ onSelectRole }) => {
       accentBorder: 'hover:border-emerald-600 focus:border-emerald-600',
       badgeBg: 'bg-emerald-50 text-emerald-700',
     },
-    {
-      role: 'Supervisor',
-      icon: <Eye className="w-9 h-9 text-sky-600" />,
-      accentBorder: 'hover:border-sky-600 focus:border-sky-600',
-      badgeBg: 'bg-sky-50 text-sky-700',
-    },
   ];
 
   return (
@@ -47,7 +42,7 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({ onSelectRole }) => {
       id="role-selector-screen"
       className="min-h-screen bg-[#F4F5F7] flex flex-col items-center justify-center p-4 sm:p-6 md:p-10"
     >
-      <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
+      <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
         {/* Logotipo Oficial Completo sin encapsular */}
         <div className="mb-8 md:mb-12 flex flex-col items-center text-center">
           <img
@@ -59,11 +54,11 @@ export const RoleSelector: React.FC<RoleSelectorProps> = ({ onSelectRole }) => {
         </div>
 
         {/* 
-          Acceso por Roles en Inicio (Cuadrícula 2 Columnas Móvil / 4 Columnas Escritorio):
+          Acceso por Roles en Inicio (3 Columnas con Supervisor desactivado temporalmente):
           Selector limpio con tarjetas independientes para cada rol. Sin header, sin descripciones, solo nombre del rol.
         */}
 
-        <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
           {rolesList.map((item) => (
             <button
               key={item.role}

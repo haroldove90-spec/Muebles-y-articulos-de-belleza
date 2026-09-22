@@ -81,4 +81,4 @@ export interface Supplier {
   isActive: boolean;
 }
 
-export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales';
+export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics';

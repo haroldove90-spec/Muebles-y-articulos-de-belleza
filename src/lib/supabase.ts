@@ -259,4 +259,20 @@ export const SupabaseService = {
       return false;
     }
   },
+
+  // Global Clear / Wipe of Test Records
+  async clearAllData(): Promise<{ success: boolean; message: string }> {
+    try {
+      // Delete in cascade order: sales (which references customers), then products, customers, suppliers
+      await supabase.from('sales').delete().neq('id', '___none___');
+      await supabase.from('products').delete().neq('id', '___none___');
+      await supabase.from('customers').delete().neq('id', '___none___');
+      await supabase.from('suppliers').delete().neq('id', '___none___');
+      return { success: true, message: 'Se eliminaron todos los registros en Supabase exitosamente.' };
+    } catch (err: any) {
+      console.warn('Error clearing Supabase data:', err);
+      return { success: false, message: err?.message || 'Error al vaciar Supabase' };
+    }
+  },
 };
+

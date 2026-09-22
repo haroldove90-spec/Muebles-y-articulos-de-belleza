@@ -11,6 +11,7 @@ import {
   X,
   ShieldCheck,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { Product, Customer, Supplier, Sale } from '../types';
 
@@ -26,6 +27,7 @@ interface SupabaseModalProps {
     suppliers?: Supplier[];
     sales?: Sale[];
   }) => void;
+  onOpenGlobalClear?: () => void;
 }
 
 export const SupabaseModal: React.FC<SupabaseModalProps> = ({
@@ -35,6 +37,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   suppliers,
   sales,
   onDataLoadedFromSupabase,
+  onOpenGlobalClear,
 }) => {
   const [status, setStatus] = useState<{ connected: boolean; message: string }>({
     connected: false,
@@ -299,7 +302,22 @@ CREATE POLICY "Allow anon all sales" ON public.sales FOR ALL TO anon, authentica
           </div>
         </div>
 
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+          {onOpenGlobalClear ? (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenGlobalClear();
+              }}
+              className="py-2 px-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
+              title="Borrado global de registros de prueba"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Borrado Global de Pruebas</span>
+            </button>
+          ) : <div />}
+
           <button
             onClick={onClose}
             className="py-2 px-5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition cursor-pointer"
