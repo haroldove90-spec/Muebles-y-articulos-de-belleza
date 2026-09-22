@@ -70,8 +70,26 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div className="flex items-center min-w-0">
-          <Logo size="md" className="h-9 sm:h-10 md:h-11" showSubtitle={true} />
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <Logo size="md" className="h-8 sm:h-9 md:h-10 shrink-0" showSubtitle={true} />
+
+          {/* Nombre / Título de la App a un lado del logo */}
+          <div id="header-app-title" className="flex flex-col justify-center min-w-0 select-none">
+            {/* Versión Fullscreen (en una sola línea) */}
+            <span className="hidden lg:inline text-base xl:text-lg font-extrabold tracking-tight text-[#0F172A] whitespace-nowrap">
+              Palacio de <span className="text-[#E6007E]">Belleza</span>
+            </span>
+
+            {/* Versión Tablet y Móvil (en 2 renglones / líneas) */}
+            <div className="flex flex-col lg:hidden leading-none">
+              <span className="text-xs sm:text-sm font-bold tracking-tight text-[#0F172A] leading-tight">
+                Palacio
+              </span>
+              <span className="text-[10px] sm:text-xs font-extrabold tracking-tight text-[#E6007E] leading-tight">
+                de Belleza
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
