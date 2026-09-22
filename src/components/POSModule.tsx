@@ -250,7 +250,7 @@ export const POSModule: React.FC<POSModuleProps> = ({
   };
 
   return (
-    <div id="pos-module-container" className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-65px)] overflow-hidden bg-[#F4F5F7]">
+    <div id="pos-module-container" className="flex-1 flex flex-col lg:flex-row h-full lg:h-[calc(100vh-65px)] overflow-hidden bg-[#F4F5F7]">
       {/* Mobile Top Segmented View Switcher: Catálogo vs Carrito */}
       <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-2 shrink-0 z-10 shadow-xs">
         <button
@@ -338,7 +338,7 @@ export const POSModule: React.FC<POSModuleProps> = ({
         </div>
 
         {/* Product Grid: Large Touch Buttons with Images and Pastel Category Backgrounds */}
-        <div className="flex-1 p-3 sm:p-4 overflow-y-auto">
+        <div className="flex-1 p-3 sm:p-4 pb-28 sm:pb-32 lg:pb-4 overflow-y-auto">
           {filteredProducts.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-500">
               <Search className="w-12 h-12 text-slate-300 mb-2" />
@@ -417,17 +417,23 @@ export const POSModule: React.FC<POSModuleProps> = ({
           )}
         </div>
 
-        {/* Floating Quick-Checkout Bar on Mobile Catalog */}
+        {/* Floating Quick-Checkout Bar on Mobile Catalog - elevated safely above BottomBar */}
         {cart.length > 0 && mobileTab === 'catalog' && (
-          <div className="lg:hidden sticky bottom-2 left-0 right-0 px-3 pb-1 z-30 animate-in slide-in-from-bottom-2 duration-200">
-            <div className="bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between gap-3">
+          <aside
+            id="mobile-floating-cart-card"
+            aria-label="Resumen flotante del carrito"
+            className="lg:hidden fixed bottom-[74px] sm:bottom-[78px] left-3 right-3 max-w-lg mx-auto z-30 pointer-events-auto animate-in slide-in-from-bottom-3 duration-200"
+          >
+            <div className="bg-[#0F172A]/95 backdrop-blur-md text-white p-3 sm:p-3.5 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.4)] border border-slate-700/80 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#E6007E] flex items-center justify-center text-white shrink-0 font-black text-xs shadow-md">
+                <div className="w-10 h-10 rounded-xl bg-[#E6007E] flex items-center justify-center text-white shrink-0 font-black text-xs shadow-md">
                   {totalCartItems}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-slate-400 font-medium truncate uppercase tracking-wider">Total Ticket</p>
-                  <p className="text-base font-black text-white leading-tight">
+                  <p className="text-[10px] text-slate-400 font-bold truncate uppercase tracking-wider">
+                    Total Ticket ({totalCartItems} {totalCartItems === 1 ? 'pieza' : 'piezas'})
+                  </p>
+                  <p className="text-base sm:text-lg font-black text-white leading-tight">
                     ${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
@@ -437,20 +443,20 @@ export const POSModule: React.FC<POSModuleProps> = ({
                 id="mobile-quick-checkout-btn"
                 type="button"
                 onClick={() => setMobileTab('cart')}
-                className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs shadow-md transition flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="py-2.5 px-4 rounded-xl bg-[#16A34A] hover:bg-[#15803D] active:scale-95 text-white font-extrabold text-xs shadow-md shadow-emerald-950/40 transition flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <span>Ver Carrito / Cobrar</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          </div>
+          </aside>
         )}
       </div>
 
       {/* RIGHT SECTION: CART, CUSTOMER SELECTOR, DISCOUNTS & TOTALS */}
       <div
         className={`w-full lg:w-[420px] bg-white flex-col border-t lg:border-t-0 shadow-lg shrink-0 ${
-          mobileTab === 'cart' ? 'flex' : 'hidden lg:flex'
+          mobileTab === 'cart' ? 'flex h-full min-h-0' : 'hidden lg:flex'
         }`}
       >
         {/* Mobile-Only Return to Catalog Banner */}
@@ -519,7 +525,7 @@ export const POSModule: React.FC<POSModuleProps> = ({
         </div>
 
         {/* Cart Items List */}
-        <div className="flex-1 p-3 overflow-y-auto space-y-2">
+        <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-2">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2">
               <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
