@@ -24,6 +24,8 @@ import { CustomersModule } from './components/CustomersModule';
 import { SuppliersModule } from './components/SuppliersModule';
 import { SalesModule } from './components/SalesModule';
 import { ReceiptModal } from './components/ReceiptModal';
+import { SupabaseModal } from './components/SupabaseModal';
+import { SupabaseService } from './lib/supabase';
 
 export default function App() {
   // Session / Authentication Role State
@@ -62,6 +64,9 @@ export default function App() {
   // Receipt Modal State
   const [activeReceiptSale, setActiveReceiptSale] = useState<Sale | null>(null);
 
+  // Supabase Sync Modal State
+  const [showSupabaseModal, setShowSupabaseModal] = useState(false);
+
   // Sync state to localStorage for persistence
   useEffect(() => {
     if (currentRole) {
@@ -70,6 +75,32 @@ export default function App() {
       localStorage.removeItem('pb_active_role');
     }
   }, [currentRole]);
+
+  // Try to load cloud data from Supabase on startup
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCloudData() {
+      try {
+        const [cloudProducts, cloudCustomers, cloudSuppliers, cloudSales] = await Promise.all([
+          SupabaseService.fetchProducts(),
+          SupabaseService.fetchCustomers(),
+          SupabaseService.fetchSuppliers(),
+          SupabaseService.fetchSales(),
+        ]);
+        if (!isMounted) return;
+        if (cloudProducts && cloudProducts.length > 0) setProducts(cloudProducts);
+        if (cloudCustomers && cloudCustomers.length > 0) setCustomers(cloudCustomers);
+        if (cloudSuppliers && cloudSuppliers.length > 0) setSuppliers(cloudSuppliers);
+        if (cloudSales && cloudSales.length > 0) setSales(cloudSales);
+      } catch {
+        // Fallback to local data
+      }
+    }
+    loadCloudData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('pb_products', JSON.stringify(products));
@@ -128,53 +159,65 @@ export default function App() {
       });
     }
 
-    // 4. Show printable receipt modal
+    // 4. Sync sale with Supabase
+    SupabaseService.insertSale(newSale);
+
+    // 5. Show printable receipt modal
     setActiveReceiptSale(newSale);
   };
 
   // Handle Product Actions
   const handleAddProduct = (newProd: Product) => {
     setProducts((prev) => [newProd, ...prev]);
+    SupabaseService.upsertProduct(newProd);
   };
 
   const handleUpdateProduct = (updated: Product) => {
     setProducts((prev) =>
       prev.map((p) => (p.id === updated.id ? updated : p))
     );
+    SupabaseService.upsertProduct(updated);
   };
 
   const handleDeleteProduct = (productId: string) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
+    SupabaseService.deleteProduct(productId);
   };
 
   // Handle Customer Actions
   const handleAddCustomer = (newCust: Customer) => {
     setCustomers((prev) => [newCust, ...prev]);
+    SupabaseService.upsertCustomer(newCust);
   };
 
   const handleUpdateCustomer = (updated: Customer) => {
     setCustomers((prev) =>
       prev.map((c) => (c.id === updated.id ? updated : c))
     );
+    SupabaseService.upsertCustomer(updated);
   };
 
   const handleDeleteCustomer = (customerId: string) => {
     setCustomers((prev) => prev.filter((c) => c.id !== customerId));
+    SupabaseService.deleteCustomer(customerId);
   };
 
   // Handle Supplier Actions
   const handleAddSupplier = (newSup: Supplier) => {
     setSuppliers((prev) => [newSup, ...prev]);
+    SupabaseService.upsertSupplier(newSup);
   };
 
   const handleUpdateSupplier = (updated: Supplier) => {
     setSuppliers((prev) =>
       prev.map((s) => (s.id === updated.id ? updated : s))
     );
+    SupabaseService.upsertSupplier(updated);
   };
 
   const handleDeleteSupplier = (supplierId: string) => {
     setSuppliers((prev) => prev.filter((s) => s.id !== supplierId));
+    SupabaseService.deleteSupplier(supplierId);
   };
 
   // Handle Sale Cancellation / Refund
@@ -187,7 +230,9 @@ export default function App() {
       return prev.map((prod) => {
         const item = saleToCancel.items.find((it) => it.product.id === prod.id);
         if (item) {
-          return { ...prod, stock: prod.stock + item.quantity };
+          const updated = { ...prod, stock: prod.stock + item.quantity };
+          SupabaseService.upsertProduct(updated);
+          return updated;
         }
         return prod;
       });
@@ -203,6 +248,7 @@ export default function App() {
       });
     });
 
+    SupabaseService.updateSaleStatus(saleId, 'Cancelada');
     alert(`Venta ${saleToCancel.folio} cancelada. Inventario restituido con éxito.`);
   };
 
@@ -225,6 +271,7 @@ export default function App() {
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
         sidebarOpen={!sidebarCollapsed}
+        onOpenSupabase={() => setShowSupabaseModal(true)}
       />
 
       {/* Main Layout Area: Desktop Sidebar + Central Workspace + Mobile Bottom Bar */}
@@ -237,6 +284,7 @@ export default function App() {
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
           onLogout={handleLogout}
+          onOpenSupabase={() => setShowSupabaseModal(true)}
         />
 
         {/* Central Workspace (Render Active Module) */}
@@ -310,6 +358,23 @@ export default function App() {
           onNewSale={() => {
             setActiveReceiptSale(null);
             setActiveModule('pos');
+          }}
+        />
+      )}
+
+      {/* Supabase Connection & Sync Modal */}
+      {showSupabaseModal && (
+        <SupabaseModal
+          onClose={() => setShowSupabaseModal(false)}
+          products={products}
+          customers={customers}
+          suppliers={suppliers}
+          sales={sales}
+          onDataLoadedFromSupabase={({ products: p, customers: c, suppliers: s, sales: sa }) => {
+            if (p) setProducts(p);
+            if (c) setCustomers(c);
+            if (s) setSuppliers(s);
+            if (sa) setSales(sa);
           }}
         />
       )}

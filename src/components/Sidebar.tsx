@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Database,
 } from 'lucide-react';
 import { PWAInstallModal } from './PWAInstallModal';
 
@@ -21,6 +22,7 @@ interface SidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onLogout: () => void;
+  onOpenSupabase?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -30,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   onToggleCollapse,
   onLogout,
+  onOpenSupabase,
 }) => {
   const menuItems: {
     id: ActiveModule;
@@ -159,8 +162,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
       </nav>
 
-      {/* Bottom PWA Install and Logout */}
+      {/* Bottom PWA Install, Supabase, and Logout */}
       <div className="p-3 border-t border-slate-200/90 space-y-2">
+        {onOpenSupabase && (
+          <button
+            onClick={onOpenSupabase}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition active:scale-95 cursor-pointer ${
+              isCollapsed ? 'justify-center' : ''
+            }`}
+            title="Base de Datos Supabase"
+          >
+            <Database className="w-4 h-4 text-emerald-600 shrink-0" />
+            {!isCollapsed && <span>Supabase Conectado</span>}
+          </button>
+        )}
+
         {!isCollapsed ? (
           <PWAInstallModal buttonText="Instala Palacio de Belleza" variant="sidebar" />
         ) : (
