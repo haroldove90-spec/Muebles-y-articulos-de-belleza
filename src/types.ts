@@ -7,16 +7,32 @@ export type ProductCategory =
   | 'Combos y Promos' 
   | 'Uñas y Estética';
 
+export interface Branch {
+  id: string;
+  name: string; // Ej: "Sucursal 1 - Matriz", "Sucursal 2 - Centro"
+  code: string; // Ej: "SUC-01", "SUC-02"
+  address: string;
+  phone: string;
+  managerName?: string;
+  isMain: boolean; // Sucursal Maestra / Principal
+  isActive: boolean; // false = bloqueada
+  createdAt: string;
+}
+
 export interface Product {
   id: string;
   sku: string;
   name: string;
   category: ProductCategory;
-  price: number;
+  price: number; // Precio principal / Precio 1
+  price1?: number; // Precio 1 (General / Menudeo)
+  price2?: number; // Precio 2 (Mayoreo / Salón)
+  price3?: number; // Precio 3 (Especial / Distribuidor)
   costPrice: number;
   wholesalePrice?: number;
-  stock: number;
+  stock: number; // Stock global sumado
   minStock: number;
+  branchStocks?: Record<string, number>; // branchId -> cantidad en esa sucursal
   image: string;
   description?: string;
   isActive?: boolean;
@@ -29,10 +45,13 @@ export interface Product {
   };
 }
 
+export type PriceTier = 1 | 2 | 3;
+
 export interface CartItem {
   product: Product;
   quantity: number;
   unitPrice: number;
+  priceTier?: PriceTier;
   discountPercent?: number;
 }
 
@@ -46,6 +65,8 @@ export interface Sale {
   cashierName: string;
   customerName: string;
   customerId?: string;
+  branchId?: string;
+  branchName?: string;
   items: CartItem[];
   subtotal: number;
   discountTotal: number;
@@ -96,5 +117,5 @@ export interface UserProfile {
   joinedDate?: string;
 }
 
-export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics' | 'profile';
+export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics' | 'profile' | 'branches';
 

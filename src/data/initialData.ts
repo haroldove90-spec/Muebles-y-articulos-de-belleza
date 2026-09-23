@@ -1,6 +1,6 @@
-import { Customer, Product, Supplier, Sale } from '../types';
+import { Customer, Product, Supplier, Sale, Branch } from '../types';
 
-export const INITIAL_PRODUCTS: Product[] = [
+const RAW_PRODUCTS: Product[] = [
   // Mobiliario (Sillones, Lavacabezas, Estaciones) - Pastel Azul/Celeste
   {
     id: 'prod-1',
@@ -252,6 +252,62 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
+export const INITIAL_BRANCHES: Branch[] = [
+  {
+    id: 'branch-1',
+    name: 'Sucursal 1 - Matriz (Principal)',
+    code: 'SUC-01',
+    address: 'Av. Principal 101, Col. Centro, CDMX',
+    phone: '+52 55 5555 0101',
+    managerName: 'Lic. Mariana Valdez',
+    isMain: true,
+    isActive: true,
+    createdAt: '2026-01-15T09:00:00Z',
+  },
+  {
+    id: 'branch-2',
+    name: 'Sucursal 2 - Plaza San Jerónimo',
+    code: 'SUC-02',
+    address: 'Plaza San Jerónimo Local 14, CDMX',
+    phone: '+52 55 5555 0202',
+    managerName: 'Ing. Roberto Carvajal',
+    isMain: false,
+    isActive: true,
+    createdAt: '2026-02-01T10:00:00Z',
+  },
+  {
+    id: 'branch-3',
+    name: 'Sucursal 3 - Insurgentes Sur',
+    code: 'SUC-03',
+    address: 'Av. Insurgentes Sur 1420, CDMX',
+    phone: '+52 55 5555 0303',
+    managerName: 'Ana Lucía Morales',
+    isMain: false,
+    isActive: true,
+    createdAt: '2026-02-15T11:00:00Z',
+  },
+];
+
+export const INITIAL_PRODUCTS: Product[] = RAW_PRODUCTS.map((p) => {
+  const p1 = p.price;
+  const p2 = p.wholesalePrice || Math.round(p.price * 0.9);
+  const p3 = Math.round(p.price * 0.84);
+  const s1 = Math.ceil(p.stock * 0.5);
+  const s2 = Math.floor(p.stock * 0.3);
+  const s3 = Math.max(0, p.stock - s1 - s2);
+  return {
+    ...p,
+    price1: p1,
+    price2: p2,
+    price3: p3,
+    branchStocks: {
+      'branch-1': s1,
+      'branch-2': s2,
+      'branch-3': s3,
+    },
+  };
+});
+
 export const INITIAL_CUSTOMERS: Customer[] = [
   {
     id: 'cust-1',
@@ -366,6 +422,8 @@ export const INITIAL_SALES: Sale[] = [
     cashierName: 'Cajero Turno Matutino',
     customerName: 'Brenda Alcaraz (Studio Glamour)',
     customerId: 'cust-1',
+    branchId: 'branch-1',
+    branchName: 'Sucursal 1 - Matriz (Principal)',
     items: [
       {
         product: INITIAL_PRODUCTS[0],
@@ -395,6 +453,8 @@ export const INITIAL_SALES: Sale[] = [
     cashierName: 'Cajero Turno Matutino',
     customerName: 'Público General / Mostrador',
     customerId: 'cust-5',
+    branchId: 'branch-1',
+    branchName: 'Sucursal 1 - Matriz (Principal)',
     items: [
       {
         product: INITIAL_PRODUCTS[6],

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
+  Branch,
   CartItem,
   Customer,
   PaymentMethod,
@@ -28,19 +29,29 @@ import {
   ChevronLeft,
   ShoppingCart,
   ShoppingBag,
+  Building2,
+  Store,
+  Lock,
+  ChevronDown,
 } from 'lucide-react';
 
 interface POSModuleProps {
   products: Product[];
   customers: Customer[];
+  branches: Branch[];
+  activeBranchId: string;
   currentRole: UserRole;
+  onSelectBranch: (branchId: string) => void;
   onCompleteSale: (newSale: Sale) => void;
 }
 
 export const POSModule: React.FC<POSModuleProps> = ({
   products,
   customers,
+  branches,
+  activeBranchId,
   currentRole,
+  onSelectBranch,
   onCompleteSale,
 }) => {
   // POS State
@@ -51,6 +62,22 @@ export const POSModule: React.FC<POSModuleProps> = ({
     customers[4] || customers[0]
   );
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+
+  // Active Branch Context & Status
+  const activeBranch = useMemo(() => {
+    return branches.find((b) => b.id === activeBranchId) || branches[0] || {
+      id: 'branch-1',
+      name: 'Sucursal Matriz',
+      code: 'SUC-01',
+      address: 'Matriz',
+      phone: '',
+      isActive: true,
+      isMain: true,
+      createdAt: '',
+    };
+  }, [branches, activeBranchId]);
+
+  const isBranchBlocked = !activeBranch.isActive;
 
   // Mobile View Tab: 'catalog' or 'cart' (eliminates forced scrolling on mobile)
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
@@ -117,6 +144,14 @@ export const POSModule: React.FC<POSModuleProps> = ({
     }
   };
 
+  // Stock available for product in current branch
+  const getProductBranchStock = (product: Product): number => {
+    if (product.branchStocks && product.branchStocks[activeBranch.id] !== undefined) {
+      return product.branchStocks[activeBranch.id];
+    }
+    return product.stock;
+  };
+
   // Filtered products list (Excludes deactivated products from POS sales)
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -130,19 +165,24 @@ export const POSModule: React.FC<POSModuleProps> = ({
     });
   }, [products, selectedCategory, searchTerm]);
 
-
   // Cart operations
   const addToCart = (product: Product) => {
-    if (product.stock <= 0) {
-      alert(`El producto "${product.name}" está agotado en inventario.`);
+    if (isBranchBlocked) {
+      alert(`La sucursal "${activeBranch.name}" está bloqueada temporalmente. No es posible agregar artículos ni cobrar en esta sucursal.`);
+      return;
+    }
+
+    const availableStock = getProductBranchStock(product);
+    if (availableStock <= 0) {
+      alert(`El producto "${product.name}" no tiene piezas disponibles en "${activeBranch.name}".`);
       return;
     }
 
     setCart((prev) => {
       const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
-        if (existing.quantity >= product.stock) {
-          alert(`No hay suficiente stock disponible (${product.stock} unidades en existencia).`);
+        if (existing.quantity >= availableStock) {
+          alert(`Stock máximo alcanzado en esta sucursal (${availableStock} piezas disponibles).`);
           return prev;
         }
         return prev.map((item) =>
@@ -151,15 +191,50 @@ export const POSModule: React.FC<POSModuleProps> = ({
             : item
         );
       } else {
-        // Wholesale pricing for wholesale customers
-        const unitPrice =
-          selectedCustomer.tier === 'Mayorista' && product.wholesalePrice
-            ? product.wholesalePrice
-            : product.price;
+        // Fixed price tier default: Tier 2 if Mayorista, else Tier 1
+        const defaultTier: 1 | 2 | 3 = selectedCustomer.tier === 'Mayorista' ? 2 : 1;
+        const p1 = product.price1 ?? product.price;
+        const p2 = product.price2 ?? product.wholesalePrice ?? Math.round(p1 * 0.9);
+        const unitPrice = defaultTier === 2 ? p2 : p1;
 
-        return [...prev, { product, quantity: 1, unitPrice }];
+        return [...prev, { product, quantity: 1, unitPrice, priceTier: defaultTier }];
       }
     });
+  };
+
+  // Update item price tier (Precio 1, 2 o 3)
+  const updateItemPriceTier = (productId: string, tier: 1 | 2 | 3) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.product.id !== productId) return item;
+        const p1 = item.product.price1 ?? item.product.price;
+        const p2 = item.product.price2 ?? item.product.wholesalePrice ?? Math.round(p1 * 0.9);
+        const p3 = item.product.price3 ?? Math.round(p1 * 0.84);
+        const newPrice = tier === 1 ? p1 : tier === 2 ? p2 : p3;
+        return {
+          ...item,
+          priceTier: tier,
+          unitPrice: newPrice,
+        };
+      })
+    );
+  };
+
+  // Bulk apply price tier to all cart items
+  const applyGlobalPriceTier = (tier: 1 | 2 | 3) => {
+    setCart((prev) =>
+      prev.map((item) => {
+        const p1 = item.product.price1 ?? item.product.price;
+        const p2 = item.product.price2 ?? item.product.wholesalePrice ?? Math.round(p1 * 0.9);
+        const p3 = item.product.price3 ?? Math.round(p1 * 0.84);
+        const newPrice = tier === 1 ? p1 : tier === 2 ? p2 : p3;
+        return {
+          ...item,
+          priceTier: tier,
+          unitPrice: newPrice,
+        };
+      })
+    );
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -221,6 +296,11 @@ export const POSModule: React.FC<POSModuleProps> = ({
 
   // Confirm Sale
   const handleConfirmSale = () => {
+    if (isBranchBlocked) {
+      alert(`No se pueden registrar ventas porque la sucursal "${activeBranch.name}" está bloqueada.`);
+      return;
+    }
+
     if (paymentMethod === 'Efectivo' && numAmountReceived < totalAmount) {
       alert('El monto recibido en efectivo es menor al total a cobrar.');
       return;
@@ -235,6 +315,8 @@ export const POSModule: React.FC<POSModuleProps> = ({
       cashierName: currentRole === 'Admin' ? 'Administrador' : currentRole === 'Gerente' ? 'Gerente en Turno' : 'Cajero POS',
       customerName: selectedCustomer ? `${selectedCustomer.name} (${selectedCustomer.businessName})` : 'Público General',
       customerId: selectedCustomer?.id,
+      branchId: activeBranch.id,
+      branchName: activeBranch.name,
       items: [...cart],
       subtotal: rawSubtotal,
       discountTotal: discountAmount,
@@ -253,6 +335,32 @@ export const POSModule: React.FC<POSModuleProps> = ({
 
   return (
     <div id="pos-module-container" className="flex-1 flex flex-col lg:flex-row h-full lg:h-[calc(100vh-65px)] overflow-hidden bg-[#F4F5F7]">
+      {/* Alerta de Sucursal Bloqueada */}
+      {isBranchBlocked && (
+        <div className="bg-rose-600 text-white px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between text-xs font-bold shrink-0 shadow-sm gap-2">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 shrink-0 text-white" />
+            <span>
+              ⚠️ <strong>{activeBranch.name}</strong> ({activeBranch.code}) se encuentra <strong>BLOQUEADA</strong> o fuera de servicio. No se pueden procesar cobros hasta ser reactivada por el Administrador.
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] opacity-90 hidden md:inline">Cambiar sucursal:</span>
+            <select
+              value={activeBranchId}
+              onChange={(e) => onSelectBranch(e.target.value)}
+              className="bg-white text-slate-900 rounded-lg px-2.5 py-1 text-xs font-bold border-none focus:outline-none cursor-pointer"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} {!b.isActive ? '(Bloqueada)' : b.isMain ? '(Matriz)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Top Segmented View Switcher: Catálogo vs Carrito */}
       <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center gap-2 shrink-0 z-10 shadow-xs">
         <button
@@ -295,6 +403,46 @@ export const POSModule: React.FC<POSModuleProps> = ({
           mobileTab === 'catalog' ? 'flex' : 'hidden lg:flex'
         }`}
       >
+        {/* Branch Context Selector & Operational Status Bar */}
+        <div className="px-3 sm:px-4 py-2 bg-slate-900 text-white flex items-center justify-between gap-2 text-xs shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <Store className="w-4 h-4 text-[#E6007E] shrink-0" />
+            <span className="text-slate-400 font-semibold hidden sm:inline">Operando en:</span>
+            <span className="font-extrabold text-white truncate">{activeBranch.name}</span>
+            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+              {activeBranch.code}
+            </span>
+            {activeBranch.isMain && (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-pink-500/20 text-[#E6007E] border border-pink-500/40">
+                Matriz
+              </span>
+            )}
+            {isBranchBlocked && (
+              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500 text-white flex items-center gap-1">
+                <Lock className="w-2.5 h-2.5" /> Bloqueada
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <label className="text-[11px] text-slate-400 font-medium hidden md:inline">Cambiar Sucursal:</label>
+            <div className="relative">
+              <select
+                value={activeBranchId}
+                onChange={(e) => onSelectBranch(e.target.value)}
+                className="bg-slate-800 text-white text-xs font-bold rounded-lg pl-2.5 pr-7 py-1 border border-slate-700 focus:outline-none focus:border-[#E6007E] cursor-pointer appearance-none"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} {!b.isActive ? '🔒 (Bloqueada)' : b.isMain ? '⭐ (Matriz)' : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
         {/* Top Search and Category Color Filters */}
         <div className="p-3 sm:p-4 bg-white border-b border-slate-200/90 space-y-3">
           {/* Quick Search Input (Azul / Bordes Seleccionados) */}
@@ -351,17 +499,22 @@ export const POSModule: React.FC<POSModuleProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredProducts.map((product) => {
                 const style = getCategoryCardStyle(product.category);
-                const isOutOfStock = product.stock <= 0;
-                const isLowStock = product.stock > 0 && product.stock <= product.minStock;
+                const branchStock = getProductBranchStock(product);
+                const isOutOfStock = branchStock <= 0;
+                const isLowStock = branchStock > 0 && branchStock <= product.minStock;
+
+                const p1 = product.price1 ?? product.price;
+                const p2 = product.price2 ?? product.wholesalePrice ?? Math.round(p1 * 0.9);
+                const p3 = product.price3 ?? Math.round(p1 * 0.84);
 
                 return (
                   <button
                     key={product.id}
                     id={`pos-item-${product.id}`}
                     onClick={() => addToCart(product)}
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || isBranchBlocked}
                     className={`group relative flex flex-col text-left rounded-2xl border p-2.5 sm:p-3 transition-all duration-150 active:scale-97 cursor-pointer shadow-xs ${style.bg} ${
-                      isOutOfStock ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:shadow-md'
+                      isOutOfStock || isBranchBlocked ? 'opacity-55 grayscale cursor-not-allowed' : 'hover:shadow-md'
                     }`}
                   >
                     {/* Image Box */}
@@ -374,19 +527,19 @@ export const POSModule: React.FC<POSModuleProps> = ({
                         loading="lazy"
                       />
 
-                      {/* Stock Warning Badge */}
+                      {/* Stock Warning Badge for Active Branch */}
                       {isOutOfStock ? (
                         <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-xs">
-                          Agotado
+                          Agotado aquí
                         </span>
                       ) : isLowStock ? (
                         <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-bold shadow-xs flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
-                          <span>Bajo: {product.stock}</span>
+                          <span>Bajo: {branchStock}</span>
                         </span>
                       ) : (
-                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/50 backdrop-blur-xs text-white text-[10px] font-medium">
-                          Stock: {product.stock}
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[10px] font-semibold">
+                          Stock: {branchStock}
                         </span>
                       )}
 
@@ -403,14 +556,20 @@ export const POSModule: React.FC<POSModuleProps> = ({
                       {product.name}
                     </h4>
 
-                    {/* SKU & Price */}
-                    <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-slate-500 truncate max-w-[80px]">
-                        {product.sku}
-                      </span>
-                      <span className={`text-sm sm:text-base font-extrabold ${style.priceColor}`}>
-                        ${product.price.toLocaleString('es-MX')}
-                      </span>
+                    {/* SKU & 3 Fixed Prices */}
+                    <div className="mt-2 pt-2 border-t border-slate-200/60">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-slate-500 truncate max-w-[80px]">
+                          {product.sku}
+                        </span>
+                        <span className={`text-sm sm:text-base font-extrabold ${style.priceColor}`}>
+                          ${p1.toLocaleString('es-MX')}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 mt-0.5 font-medium">
+                        <span>P2: ${p2}</span>
+                        <span>P3: ${p3}</span>
+                      </div>
                     </div>
                   </button>
                 );
@@ -526,6 +685,41 @@ export const POSModule: React.FC<POSModuleProps> = ({
           </button>
         </div>
 
+        {/* Fast Price Tier Selector for Entire Cart */}
+        {cart.length > 0 && (
+          <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between text-xs">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+              Aplicar a todo:
+            </span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => applyGlobalPriceTier(1)}
+                className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-white hover:bg-slate-200 text-slate-800 border border-slate-300 transition cursor-pointer"
+                title="Cambiar todos los artículos a Precio 1"
+              >
+                P1 (General)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyGlobalPriceTier(2)}
+                className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition cursor-pointer"
+                title="Cambiar todos los artículos a Precio 2"
+              >
+                P2 (Mayoreo)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyGlobalPriceTier(3)}
+                className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 transition cursor-pointer"
+                title="Cambiar todos los artículos a Precio 3"
+              >
+                P3 (Especial)
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Cart Items List */}
         <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-2">
           {cart.length === 0 ? (
@@ -539,62 +733,114 @@ export const POSModule: React.FC<POSModuleProps> = ({
               </p>
             </div>
           ) : (
-            cart.map((item) => (
-              <div
-                key={item.product.id}
-                className="p-2.5 rounded-xl border border-slate-200 bg-[#FAFAFA] flex items-center gap-2.5 transition-all hover:border-slate-300"
-              >
-                {/* Thumb */}
-                <img
-                  src={item.product.image}
-                  alt={item.product.name}
-                  referrerPolicy="no-referrer"
-                  className="w-12 h-12 rounded-lg object-cover bg-slate-200 shrink-0"
-                />
+            cart.map((item) => {
+              const p1 = item.product.price1 ?? item.product.price;
+              const p2 = item.product.price2 ?? item.product.wholesalePrice ?? Math.round(p1 * 0.9);
+              const p3 = item.product.price3 ?? Math.round(p1 * 0.84);
+              const activeTier = item.priceTier || 1;
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-[#1E293B] truncate leading-tight">
-                    {item.product.name}
-                  </p>
-                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                    ${item.unitPrice.toLocaleString('es-MX')} c/u
-                  </p>
-                </div>
+              return (
+                <div
+                  key={item.product.id}
+                  className="p-2.5 rounded-xl border border-slate-200 bg-[#FAFAFA] flex flex-col gap-2 transition-all hover:border-slate-300"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {/* Thumb */}
+                    <img
+                      src={item.product.image}
+                      alt={item.product.name}
+                      referrerPolicy="no-referrer"
+                      className="w-11 h-11 rounded-lg object-cover bg-slate-200 shrink-0"
+                    />
 
-                {/* Qty Controls */}
-                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
-                  <button
-                    onClick={() => updateQuantity(item.product.id, -1)}
-                    className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90"
-                  >
-                    <Minus className="w-3 h-3" />
-                  </button>
-                  <span className="w-6 text-center text-xs font-bold text-[#0F172A]">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={() => updateQuantity(item.product.id, 1)}
-                    className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
-                </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#1E293B] truncate leading-tight">
+                        {item.product.name}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">
+                        ${item.unitPrice.toLocaleString('es-MX')} c/u
+                      </p>
+                    </div>
 
-                {/* Subtotal & Delete */}
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-extrabold text-[#0F172A]">
-                    ${(item.unitPrice * item.quantity).toLocaleString('es-MX')}
-                  </p>
-                  <button
-                    onClick={() => removeFromCart(item.product.id)}
-                    className="text-slate-400 hover:text-rose-600 text-[10px] transition mt-0.5"
-                  >
-                    Quitar
-                  </button>
+                    {/* Qty Controls */}
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                      <button
+                        onClick={() => updateQuantity(item.product.id, -1)}
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-6 text-center text-xs font-bold text-[#0F172A]">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.product.id, 1)}
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {/* Subtotal & Delete */}
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-extrabold text-[#0F172A]">
+                        ${(item.unitPrice * item.quantity).toLocaleString('es-MX')}
+                      </p>
+                      <button
+                        onClick={() => removeFromCart(item.product.id)}
+                        className="text-slate-400 hover:text-rose-600 text-[10px] transition mt-0.5"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 3 Fixed Prices Pill Selector (P1, P2, P3) */}
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px]">
+                    <span className="text-slate-400 font-semibold">Precio aplicado:</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updateItemPriceTier(item.product.id, 1)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold border transition cursor-pointer ${
+                          activeTier === 1
+                            ? 'bg-[#E6007E] text-white border-[#E6007E] shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                        title="Precio 1: General"
+                      >
+                        P1: ${p1}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateItemPriceTier(item.product.id, 2)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold border transition cursor-pointer ${
+                          activeTier === 2
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                        title="Precio 2: Mayoreo"
+                      >
+                        P2: ${p2}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateItemPriceTier(item.product.id, 3)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold border transition cursor-pointer ${
+                          activeTier === 3
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                        title="Precio 3: Especial"
+                      >
+                        P3: ${p3}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -609,7 +855,7 @@ export const POSModule: React.FC<POSModuleProps> = ({
             >
               <Tag className="w-3.5 h-3.5" />
               <span>
-                {discountPercent > 0 ? `Descuento ${discountPercent}%` : 'Aplicar Descuento'}
+                {discountPercent > 0 ? `Descuento ${discountPercent}%` : 'Aplicar Descuento (%)'}
               </span>
             </button>
 
@@ -645,15 +891,19 @@ export const POSModule: React.FC<POSModuleProps> = ({
           <button
             id="pos-charge-button"
             onClick={handleOpenPayment}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isBranchBlocked}
             className={`w-full py-3.5 px-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 text-white shadow-md transition-all duration-150 active:scale-98 cursor-pointer ${
-              cart.length === 0
-                ? 'bg-slate-300 cursor-not-allowed shadow-none'
-                : 'bg-[#16A34A] hover:bg-[#15803D] shadow-emerald-200'
+              cart.length === 0 || isBranchBlocked
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+                : 'bg-[#16A34A] hover:bg-[#15803D] hover:shadow-lg hover:shadow-emerald-900/20'
             }`}
           >
             <DollarSign className="w-5 h-5 stroke-[2.5]" />
-            <span>COBRAR ${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+            <span>
+              {isBranchBlocked
+                ? 'Sucursal Bloqueada para Cobro'
+                : `Cobrar $${totalAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`}
+            </span>
           </button>
         </div>
       </div>

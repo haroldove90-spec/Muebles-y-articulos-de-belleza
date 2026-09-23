@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Product, ProductCategory } from '../types';
+import { Branch, Product, ProductCategory } from '../types';
 import {
   Package,
   Plus,
@@ -17,18 +17,25 @@ import {
   Power,
   Eye,
   EyeOff,
+  Building2,
+  Store,
+  Layers,
+  ChevronDown,
 } from 'lucide-react';
 
 interface ProductsModuleProps {
   products: Product[];
+  branches: Branch[];
+  activeBranchId?: string;
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
 }
 
-
 export const ProductsModule: React.FC<ProductsModuleProps> = ({
   products,
+  branches,
+  activeBranchId,
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
@@ -44,21 +51,24 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form State
+  // Form State with fixed price tiers and branch stocks
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     sku: '',
     category: 'Mobiliario',
-    price: 0,
-    costPrice: 0,
-    wholesalePrice: 0,
-    stock: 10,
+    price: 65,
+    price1: 65,
+    price2: 60,
+    price3: 57,
+    costPrice: 35,
+    wholesalePrice: 60,
+    stock: 20,
     minStock: 3,
+    branchStocks: {},
     image: '',
     description: '',
     isActive: true,
   });
-
 
   const categories: (ProductCategory | 'Todos')[] = [
     'Todos',
@@ -143,15 +153,25 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   const handleOpenCreate = () => {
     setEditingProduct(null);
     setShowUrlInput(false);
+    const initialBranchStocks: Record<string, number> = {};
+    branches.forEach((b) => {
+      initialBranchStocks[b.id] = 10;
+    });
+    const calculatedTotalStock = branches.length * 10;
+
     setFormData({
       name: '',
       sku: `PB-${Math.floor(100 + Math.random() * 900)}`,
       category: 'Mobiliario',
-      price: 1500,
-      costPrice: 850,
-      wholesalePrice: 1350,
-      stock: 10,
+      price: 65,
+      price1: 65,
+      price2: 60,
+      price3: 57,
+      costPrice: 35,
+      wholesalePrice: 60,
+      stock: calculatedTotalStock || 10,
       minStock: 3,
+      branchStocks: initialBranchStocks,
       image: '',
       description: '',
       isActive: true,
@@ -163,38 +183,110 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   const handleOpenEdit = (p: Product) => {
     setEditingProduct(p);
     setShowUrlInput(false);
-    setFormData({ ...p, isActive: p.isActive !== false });
+    const branchStocks: Record<string, number> = { ...(p.branchStocks || {}) };
+    branches.forEach((b) => {
+      if (branchStocks[b.id] === undefined) {
+        branchStocks[b.id] = 0;
+      }
+    });
+
+    const p1 = p.price1 ?? p.price;
+    const p2 = p.price2 ?? p.wholesalePrice ?? Math.round(p.price * 0.9);
+    const p3 = p.price3 ?? Math.round(p.price * 0.84);
+
+    setFormData({
+      ...p,
+      price: p1,
+      price1: p1,
+      price2: p2,
+      price3: p3,
+      wholesalePrice: p2,
+      branchStocks,
+      isActive: p.isActive !== false,
+    });
     setShowModal(true);
+  };
+
+  // Update stock for an individual branch in the form
+  const handleBranchStockChange = (branchId: string, qty: number) => {
+    const cleanQty = Math.max(0, isNaN(qty) ? 0 : qty);
+    const currentStocks = { ...(formData.branchStocks || {}) };
+    currentStocks[branchId] = cleanQty;
+
+    // Sum total stock from all branches
+    const total = Object.values(currentStocks).reduce((sum, v) => sum + (Number(v) || 0), 0);
+
+    setFormData((prev) => ({
+      ...prev,
+      branchStocks: currentStocks,
+      stock: total,
+    }));
+  };
+
+  // Bulk stock helper
+  const handleApplyStockToAllBranches = (qty: number) => {
+    const updatedStocks: Record<string, number> = {};
+    branches.forEach((b) => {
+      updatedStocks[b.id] = qty;
+    });
+    const total = branches.length * qty;
+
+    setFormData((prev) => ({
+      ...prev,
+      branchStocks: updatedStocks,
+      stock: total,
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.sku || !formData.price) {
-      alert('Por favor completa los campos requeridos (Nombre, SKU, Precio).');
+    const p1 = Number(formData.price1 || formData.price || 0);
+    const p2 = Number(formData.price2 || formData.wholesalePrice || p1);
+    const p3 = Number(formData.price3 || p2);
+
+    if (!formData.name || !formData.sku || !p1) {
+      alert('Por favor completa los campos requeridos (Nombre, SKU, Precio 1).');
       return;
+    }
+
+    // Ensure total stock matches branchStocks sum if branches exist
+    const branchStocks = { ...(formData.branchStocks || {}) };
+    let totalStock = Number(formData.stock || 0);
+    if (branches.length > 0) {
+      totalStock = branches.reduce((sum, b) => sum + (Number(branchStocks[b.id]) || 0), 0);
     }
 
     if (editingProduct) {
       onUpdateProduct({
         ...editingProduct,
         ...formData,
-        price: Number(formData.price),
+        name: formData.name.trim(),
+        sku: formData.sku.trim(),
+        price: p1,
+        price1: p1,
+        price2: p2,
+        price3: p3,
         costPrice: Number(formData.costPrice || 0),
-        wholesalePrice: Number(formData.wholesalePrice || 0),
-        stock: Number(formData.stock || 0),
+        wholesalePrice: p2,
+        stock: totalStock,
+        branchStocks,
         minStock: Number(formData.minStock || 0),
         isActive: formData.isActive !== false,
       } as Product);
     } else {
       const newProd: Product = {
         id: `prod-${Date.now()}`,
-        name: formData.name || '',
-        sku: formData.sku || `PB-${Date.now()}`,
+        name: formData.name.trim(),
+        sku: formData.sku.trim(),
         category: (formData.category as ProductCategory) || 'Mobiliario',
-        price: Number(formData.price),
+        price: p1,
+        price1: p1,
+        price2: p2,
+        price3: p3,
         costPrice: Number(formData.costPrice || 0),
-        wholesalePrice: Number(formData.wholesalePrice || 0),
-        stock: Number(formData.stock || 0),
+        wholesalePrice: p2,
+        stock: totalStock,
+        branchStocks,
         minStock: Number(formData.minStock || 0),
         image: formData.image || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80',
         description: formData.description || '',
@@ -342,9 +434,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 <th className="py-3.5 px-4">Producto</th>
                 <th className="py-3.5 px-3">Categoría</th>
                 <th className="py-3.5 px-3">Costo</th>
-                <th className="py-3.5 px-3">P. Venta</th>
-                <th className="py-3.5 px-3">P. Mayoreo</th>
-                <th className="py-3.5 px-3 text-center">Stock</th>
+                <th className="py-3.5 px-3">Precios (P1, P2, P3)</th>
+                <th className="py-3.5 px-3 text-center">Existencias</th>
                 <th className="py-3.5 px-3 text-center">Estado</th>
                 <th className="py-3.5 px-4 text-right">Acciones</th>
               </tr>
@@ -354,6 +445,15 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 const isActive = item.isActive !== false;
                 const isOutOfStock = item.stock <= 0;
                 const isLowStock = item.stock > 0 && item.stock <= item.minStock;
+
+                const p1 = item.price1 ?? item.price;
+                const p2 = item.price2 ?? item.wholesalePrice ?? Math.round(item.price * 0.9);
+                const p3 = item.price3 ?? Math.round(item.price * 0.84);
+
+                // Stock in currently active branch
+                const activeBranchStock = activeBranchId && item.branchStocks
+                  ? (item.branchStocks[activeBranchId] ?? 0)
+                  : undefined;
 
                 return (
                   <tr
@@ -391,15 +491,70 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     <td className="py-3 px-3 font-mono text-slate-500">
                       ${item.costPrice.toLocaleString('es-MX')}
                     </td>
-                    <td className="py-3 px-3 font-mono font-bold text-[#0F172A]">
-                      ${item.price.toLocaleString('es-MX')}
+                    {/* Fixed Price Tiers (Precio 1, 2, 3) */}
+                    <td className="py-3 px-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 font-mono text-xs">
+                          <span className="px-1.5 py-0.5 rounded bg-pink-100 text-[#E6007E] font-extrabold text-[10px]">
+                            P1
+                          </span>
+                          <span className="font-black text-[#0F172A]">
+                            ${p1.toLocaleString('es-MX')}
+                          </span>
+                          <span className="text-[10px] text-slate-400">Menudeo</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-600">
+                          <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 font-bold text-[9px]">
+                            P2
+                          </span>
+                          <span className="font-semibold">${p2.toLocaleString('es-MX')}</span>
+                          <span className="text-[10px] text-slate-400">Mayoreo</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-600">
+                          <span className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-700 font-bold text-[9px]">
+                            P3
+                          </span>
+                          <span className="font-semibold">${p3.toLocaleString('es-MX')}</span>
+                          <span className="text-[10px] text-slate-400">Especial</span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="py-3 px-3 font-mono text-emerald-700 font-semibold">
-                      {item.wholesalePrice ? `$${item.wholesalePrice.toLocaleString('es-MX')}` : '—'}
-                    </td>
-                    <td className="py-3 px-3 text-center font-bold text-sm">
-                      {item.stock}
-                      <span className="text-[10px] text-slate-400 block">mín. {item.minStock}</span>
+                    {/* Multi-Branch Inventory Stock */}
+                    <td className="py-3 px-3 text-center">
+                      <div className="inline-flex flex-col items-center">
+                        {activeBranchStock !== undefined ? (
+                          <div className="flex items-center gap-1 text-xs font-black text-[#0F172A]">
+                            <Store className="w-3.5 h-3.5 text-[#E6007E]" />
+                            <span>{activeBranchStock} pzs</span>
+                            <span className="text-[10px] font-normal text-slate-500">(en tienda)</span>
+                          </div>
+                        ) : null}
+                        <span className="text-[11px] font-bold text-slate-700">
+                          Global: {item.stock} pzs
+                        </span>
+                        <span className="text-[10px] text-slate-400">mín. {item.minStock}</span>
+                        {/* Quick branch pill indicator */}
+                        {item.branchStocks && Object.keys(item.branchStocks).length > 0 && (
+                          <div className="flex items-center gap-1 mt-1 justify-center flex-wrap max-w-[140px]">
+                            {branches.map((b) => {
+                              const bStock = item.branchStocks?.[b.id] ?? 0;
+                              return (
+                                <span
+                                  key={b.id}
+                                  title={`${b.name}: ${bStock} piezas`}
+                                  className={`text-[9px] px-1 py-0.2 rounded border font-mono ${
+                                    b.id === activeBranchId
+                                      ? 'bg-pink-50 border-pink-300 text-[#E6007E] font-bold'
+                                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                                  }`}
+                                >
+                                  {b.code}: {bStock}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3 text-center">
                       {!isActive ? (
@@ -538,37 +693,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Precio Venta Público ($) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.price || 0}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold text-[#E6007E] focus:outline-none focus:border-[#E6007E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Precio Mayoreo / Salón ($)</label>
-                  <input
-                    type="number"
-                    value={formData.wholesalePrice || 0}
-                    onChange={(e) => setFormData({ ...formData, wholesalePrice: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Stock Actual (piezas)</label>
-                  <input
-                    type="number"
-                    value={formData.stock || 0}
-                    onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
-                  />
-                </div>
-
-                <div>
                   <label className="font-bold text-slate-700 block mb-1">Stock Mínimo Alerta</label>
                   <input
                     type="number"
@@ -576,6 +700,93 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
                   />
+                </div>
+
+                {/* 3 Listas de Precios Fijos (P1, P2, P3) */}
+                <div className="sm:col-span-2 bg-gradient-to-r from-pink-50/60 via-blue-50/40 to-purple-50/40 p-4 rounded-2xl border border-pink-200/70">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <DollarSign className="w-4 h-4 text-[#E6007E]" />
+                        <span>Listas de Precios Fijos (Precio 1, 2, 3)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Precios netos independientes (sin cálculos porcentuales en caja).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-white p-3 rounded-xl border border-pink-200 shadow-2xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-extrabold text-[#E6007E] text-xs">
+                          Precio 1 *
+                        </label>
+                        <span className="text-[10px] text-pink-600 font-bold bg-pink-50 px-1.5 py-0.2 rounded">
+                          Menudeo
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                        <input
+                          type="number"
+                          required
+                          value={formData.price1 ?? formData.price ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setFormData({ ...formData, price: val, price1: val });
+                          }}
+                          placeholder="65"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-[#E6007E]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-blue-200 shadow-2xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-extrabold text-blue-700 text-xs">
+                          Precio 2
+                        </label>
+                        <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.2 rounded">
+                          Mayoreo
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                        <input
+                          type="number"
+                          value={formData.price2 ?? formData.wholesalePrice ?? 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setFormData({ ...formData, price2: val, wholesalePrice: val });
+                          }}
+                          placeholder="60"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-blue-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-3 rounded-xl border border-purple-200 shadow-2xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-extrabold text-purple-700 text-xs">
+                          Precio 3
+                        </label>
+                        <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.2 rounded">
+                          Especial
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+                        <input
+                          type="number"
+                          value={formData.price3 ?? 0}
+                          onChange={(e) => setFormData({ ...formData, price3: Number(e.target.value) })}
+                          placeholder="57"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-purple-600"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Subir Imagen de Producto (Archivo, Arrastrar y Soltar o Selector de Archivos) */}
@@ -704,6 +915,95 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     />
                     <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16A34A]"></div>
                   </label>
+                </div>
+
+                {/* Asignación de Stock Inicial por Sucursal */}
+                <div className="sm:col-span-2 bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 className="w-4 h-4 text-[#E6007E]" />
+                        <span>Distribución de Inventario por Sucursal</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Captura de una sola vez la cantidad de stock para cada sucursal:
+                      </p>
+                    </div>
+
+                    {/* Acciones rápidas de llenado masivo */}
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 mr-1">Rápido:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyStockToAllBranches(10)}
+                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      >
+                        10 a todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyStockToAllBranches(20)}
+                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      >
+                        20 a todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyStockToAllBranches(0)}
+                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer"
+                      >
+                        0 a todas
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {branches.map((b) => {
+                      const branchQty = formData.branchStocks?.[b.id] ?? 0;
+                      return (
+                        <div
+                          key={b.id}
+                          className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
+                                {b.code}
+                              </span>
+                              {b.isMain && (
+                                <span className="text-[9px] font-bold text-[#E6007E]">
+                                  (Matriz)
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs font-bold text-[#0F172A] truncate mt-0.5" title={b.name}>
+                              {b.name}
+                            </p>
+                          </div>
+
+                          <div className="w-20 shrink-0">
+                            <input
+                              type="number"
+                              min="0"
+                              value={branchQty}
+                              onChange={(e) => handleBranchStockChange(b.id, parseInt(e.target.value) || 0)}
+                              className="w-full text-center px-2 py-1.5 rounded-lg border border-slate-300 font-extrabold text-sm text-[#0F172A] focus:outline-none focus:border-[#E6007E]"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Barra de Suma Global Calculada */}
+                  <div className="mt-2 pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-600">
+                      Total Inventario Global (Suma automática):
+                    </span>
+                    <span className="text-sm sm:text-base font-black text-[#E6007E] bg-pink-50 px-3 py-1 rounded-xl border border-pink-200">
+                      {formData.stock || 0} piezas
+                    </span>
+                  </div>
                 </div>
               </div>
 

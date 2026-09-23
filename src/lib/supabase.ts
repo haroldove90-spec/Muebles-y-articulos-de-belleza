@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Customer, Product, Sale, Supplier, UserProfile, UserRole } from '../types';
+import { Branch, Customer, Product, Sale, Supplier, UserProfile, UserRole } from '../types';
 
 // The Supabase project details provided by user
 const RAW_URL = import.meta.env.VITE_SUPABASE_URL || 'https://yioyruhnrcenyxkkgvun.supabase.co';
@@ -33,26 +33,79 @@ export const SupabaseService = {
     }
   },
 
+  // Branches (Sucursales)
+  async fetchBranches(): Promise<Branch[] | null> {
+    try {
+      const { data, error } = await supabase.from('branches').select('*').order('created_at', { ascending: true });
+      if (error || !data || data.length === 0) return null;
+      return data.map((d: any) => ({
+        id: d.id,
+        name: d.name,
+        code: d.code,
+        address: d.address || '',
+        phone: d.phone || '',
+        managerName: d.manager_name || undefined,
+        isMain: d.is_main ?? false,
+        isActive: d.is_active ?? true,
+        createdAt: d.created_at || new Date().toISOString(),
+      }));
+    } catch {
+      return null;
+    }
+  },
+
+  async upsertBranch(branch: Branch) {
+    try {
+      await supabase.from('branches').upsert({
+        id: branch.id,
+        name: branch.name,
+        code: branch.code,
+        address: branch.address,
+        phone: branch.phone,
+        manager_name: branch.managerName || null,
+        is_main: branch.isMain,
+        is_active: branch.isActive,
+      });
+    } catch (err) {
+      console.warn('Supabase upsertBranch error:', err);
+    }
+  },
+
+  async deleteBranch(branchId: string) {
+    try {
+      await supabase.from('branches').delete().eq('id', branchId);
+    } catch (err) {
+      console.warn('Supabase deleteBranch error:', err);
+    }
+  },
+
   // Products
   async fetchProducts(): Promise<Product[] | null> {
     try {
       const { data, error } = await supabase.from('products').select('*');
       if (error || !data || data.length === 0) return null;
-      return data.map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        sku: d.sku,
-        category: d.category,
-        price: Number(d.price),
-        costPrice: Number(d.cost_price || 0),
-        wholesalePrice: d.wholesale_price ? Number(d.wholesale_price) : undefined,
-        stock: Number(d.stock || 0),
-        minStock: Number(d.min_stock || 3),
-        image: d.image || '',
-        description: d.description || '',
-        isActive: d.is_active ?? true,
-        specs: d.specs || undefined,
-      }));
+      return data.map((d: any) => {
+        const basePrice = Number(d.price);
+        return {
+          id: d.id,
+          name: d.name,
+          sku: d.sku,
+          category: d.category,
+          price: basePrice,
+          price1: d.price_1 !== undefined && d.price_1 !== null ? Number(d.price_1) : basePrice,
+          price2: d.price_2 !== undefined && d.price_2 !== null ? Number(d.price_2) : (d.wholesale_price ? Number(d.wholesale_price) : Math.round(basePrice * 0.9)),
+          price3: d.price_3 !== undefined && d.price_3 !== null ? Number(d.price_3) : Math.round(basePrice * 0.84),
+          costPrice: Number(d.cost_price || 0),
+          wholesalePrice: d.wholesale_price ? Number(d.wholesale_price) : undefined,
+          stock: Number(d.stock || 0),
+          minStock: Number(d.min_stock || 3),
+          branchStocks: d.branch_stocks || undefined,
+          image: d.image || '',
+          description: d.description || '',
+          isActive: d.is_active ?? true,
+          specs: d.specs || undefined,
+        };
+      });
     } catch {
       return null;
     }
@@ -66,10 +119,14 @@ export const SupabaseService = {
         sku: product.sku,
         category: product.category,
         price: product.price,
+        price_1: product.price1 ?? product.price,
+        price_2: product.price2 ?? product.wholesalePrice ?? null,
+        price_3: product.price3 ?? null,
         cost_price: product.costPrice,
         wholesale_price: product.wholesalePrice || null,
         stock: product.stock,
         min_stock: product.minStock,
+        branch_stocks: product.branchStocks || null,
         image: product.image,
         description: product.description,
         is_active: product.isActive ?? true,
@@ -197,6 +254,8 @@ export const SupabaseService = {
         cashierName: d.cashier_name,
         customerName: d.customer_name,
         customerId: d.customer_id,
+        branchId: d.branch_id || undefined,
+        branchName: d.branch_name || undefined,
         items: d.items,
         subtotal: Number(d.subtotal),
         discountTotal: Number(d.discount_total || 0),
@@ -222,6 +281,8 @@ export const SupabaseService = {
         cashier_name: sale.cashierName,
         customer_name: sale.customerName,
         customer_id: sale.customerId || null,
+        branch_id: sale.branchId || null,
+        branch_name: sale.branchName || null,
         items: sale.items,
         subtotal: sale.subtotal,
         discount_total: sale.discountTotal,
@@ -299,9 +360,13 @@ export const SupabaseService = {
     products: Product[],
     customers: Customer[],
     suppliers: Supplier[],
-    sales: Sale[]
+    sales: Sale[],
+    branches?: Branch[]
   ) {
     try {
+      if (branches) {
+        for (const b of branches) await this.upsertBranch(b);
+      }
       for (const p of products) await this.upsertProduct(p);
       for (const c of customers) await this.upsertCustomer(c);
       for (const s of suppliers) await this.upsertSupplier(s);
@@ -321,9 +386,10 @@ export const SupabaseService = {
       const e2 = await supabase.from('products').delete().neq('id', '___none___');
       const e3 = await supabase.from('customers').delete().neq('id', '___none___');
       const e4 = await supabase.from('suppliers').delete().neq('id', '___none___');
+      const e5 = await supabase.from('branches').delete().neq('id', '___none___');
 
-      if (e1.error || e2.error || e3.error || e4.error) {
-        console.warn('Supabase clear warning:', e1.error || e2.error || e3.error || e4.error);
+      if (e1.error || e2.error || e3.error || e4.error || e5.error) {
+        console.warn('Supabase clear warning:', e1.error || e2.error || e3.error || e4.error || e5.error);
       }
 
       return { success: true, message: 'Se eliminaron todos los registros en Supabase exitosamente.' };

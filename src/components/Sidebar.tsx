@@ -14,6 +14,7 @@ import {
   Database,
   Trash2,
   UserCircle,
+  Store,
 } from 'lucide-react';
 import { PWAInstallModal } from './PWAInstallModal';
 
@@ -70,6 +71,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       description: 'Altas, existencias y precios',
       icon: <Package className="w-5 h-5" />,
       allowedRoles: ['Admin', 'Gerente'], // Administrado por Gerente y Admin
+    },
+    {
+      id: 'branches',
+      label: 'Sucursales',
+      description: 'Gestión multitienda y matriz',
+      icon: <Store className="w-5 h-5" />,
+      allowedRoles: ['Admin'], // Exclusivo del Administrador Principal
     },
     {
       id: 'customers',

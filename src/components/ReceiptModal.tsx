@@ -74,6 +74,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <span className="font-bold text-[#0F172A]">{sale.folio}</span>
             </div>
             <div className="flex justify-between">
+              <span className="font-semibold">Sucursal:</span>
+              <span className="font-bold text-slate-800">{sale.branchName || 'Sucursal Matriz'}</span>
+            </div>
+            <div className="flex justify-between">
               <span>Fecha y hora:</span>
               <span>{new Date(sale.date).toLocaleString('es-MX')}</span>
             </div>
@@ -105,7 +109,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <div key={idx} className="grid grid-cols-12 text-[11px] py-1 border-b border-slate-100 items-start">
                 <div className="col-span-6 pr-1">
                   <p className="font-semibold text-slate-800 leading-tight">{item.product.name}</p>
-                  <p className="text-[10px] text-slate-400">SKU: {item.product.sku}</p>
+                  <p className="text-[10px] text-slate-400">
+                    SKU: {item.product.sku} {item.priceTier ? `• Precio P${item.priceTier}` : ''}
+                  </p>
                 </div>
                 <div className="col-span-2 text-center font-bold">{item.quantity}</div>
                 <div className="col-span-4 text-right font-medium">

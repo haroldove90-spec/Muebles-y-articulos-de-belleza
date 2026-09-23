@@ -1,12 +1,15 @@
 import React from 'react';
-import { UserRole } from '../types';
+import { Branch, UserRole } from '../types';
 import { Logo } from './Logo';
 import { PWAInstallModal } from './PWAInstallModal';
-import { LogOut, Shield, User, ShoppingBag, Menu, Database, Trash2 } from 'lucide-react';
+import { LogOut, Shield, User, ShoppingBag, Menu, Database, Trash2, Store } from 'lucide-react';
 
 interface HeaderProps {
   currentRole: UserRole;
   onLogout: () => void;
+  branches?: Branch[];
+  activeBranchId?: string;
+  onSelectBranch?: (branchId: string) => void;
   onToggleSidebar?: () => void;
   sidebarOpen?: boolean;
   onOpenSupabase?: () => void;
@@ -17,6 +20,9 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentRole,
   onLogout,
+  branches = [],
+  activeBranchId,
+  onSelectBranch,
   onToggleSidebar,
   sidebarOpen,
   onOpenSupabase,
@@ -94,7 +100,26 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Active Role Badge, Desktop Management Tools, and Logout */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Selector / Navegador Rápido de Sucursal para Administrador y Usuarios */}
+        {branches && branches.length > 0 && onSelectBranch && (
+          <div className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200/70 border border-slate-200 rounded-xl px-2 sm:px-2.5 py-1 transition text-xs">
+            <Store className="w-3.5 h-3.5 text-[#E6007E] shrink-0" />
+            <select
+              value={activeBranchId}
+              onChange={(e) => onSelectBranch(e.target.value)}
+              className="bg-transparent text-slate-800 font-bold text-xs focus:outline-none cursor-pointer max-w-[110px] sm:max-w-[160px] truncate"
+              title="Cambiar sucursal activa para navegar y operar"
+            >
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} {!b.isActive ? '🔒 (Bloqueada)' : b.isMain ? '⭐ (Matriz)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Identificación del Rol Activo / Acceso Rápido a Perfil */}
         <button
           id="active-role-indicator"

@@ -13,7 +13,7 @@ import {
   ExternalLink,
   Trash2,
 } from 'lucide-react';
-import { Product, Customer, Supplier, Sale } from '../types';
+import { Product, Customer, Supplier, Sale, Branch } from '../types';
 
 interface SupabaseModalProps {
   onClose: () => void;
@@ -21,11 +21,13 @@ interface SupabaseModalProps {
   customers: Customer[];
   suppliers: Supplier[];
   sales: Sale[];
+  branches?: Branch[];
   onDataLoadedFromSupabase: (data: {
     products?: Product[];
     customers?: Customer[];
     suppliers?: Supplier[];
     sales?: Sale[];
+    branches?: Branch[];
   }) => void;
   onOpenGlobalClear?: () => void;
 }
@@ -36,6 +38,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   customers,
   suppliers,
   sales,
+  branches = [],
   onDataLoadedFromSupabase,
   onOpenGlobalClear,
 }) => {
@@ -48,22 +51,41 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   const sqlCode = `-- TABLAS PARA SUPABASE (Proyecto yioyruhnrcenyxkkgvun)
+-- 1. TABLA DE SUCURSALES (Multi-tienda y Matriz)
+CREATE TABLE IF NOT EXISTS public.branches (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    address TEXT,
+    phone TEXT,
+    manager_name TEXT,
+    is_main BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- 2. TABLA DE PRODUCTOS (Con Precios P1, P2, P3 y Stock por Sucursal)
 CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     sku TEXT NOT NULL UNIQUE,
     category TEXT NOT NULL,
     price NUMERIC(12, 2) NOT NULL,
+    price1 NUMERIC(12, 2),
+    price2 NUMERIC(12, 2),
+    price3 NUMERIC(12, 2),
     cost_price NUMERIC(12, 2) DEFAULT 0,
     wholesale_price NUMERIC(12, 2),
     stock INTEGER NOT NULL DEFAULT 0,
     min_stock INTEGER NOT NULL DEFAULT 3,
+    branch_stocks JSONB DEFAULT '{}'::jsonb,
     image TEXT,
     description TEXT,
     specs JSONB,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 3. TABLA DE CLIENTES
 CREATE TABLE IF NOT EXISTS public.customers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -77,6 +99,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 4. TABLA DE PROVEEDORES
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id TEXT PRIMARY KEY,
     company_name TEXT NOT NULL,
@@ -90,6 +113,7 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 5. TABLA DE VENTAS (Con soporte para sucursal)
 CREATE TABLE IF NOT EXISTS public.sales (
     id TEXT PRIMARY KEY,
     folio TEXT NOT NULL,
@@ -98,6 +122,8 @@ CREATE TABLE IF NOT EXISTS public.sales (
     cashier_name TEXT NOT NULL,
     customer_name TEXT NOT NULL,
     customer_id TEXT,
+    branch_id TEXT REFERENCES public.branches(id) ON DELETE SET NULL,
+    branch_name TEXT,
     items JSONB NOT NULL,
     subtotal NUMERIC(12, 2) NOT NULL,
     discount_total NUMERIC(12, 2) DEFAULT 0,
@@ -110,12 +136,14 @@ CREATE TABLE IF NOT EXISTS public.sales (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- RLS
+-- HABILITAR RLS
+ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Allow anon all branches" ON public.branches FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all products" ON public.products FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all customers" ON public.customers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all suppliers" ON public.suppliers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
@@ -141,7 +169,7 @@ CREATE POLICY "Allow anon all sales" ON public.sales FOR ALL TO anon, authentica
   const handleUploadToSupabase = async () => {
     setLoading(true);
     setSyncMessage(null);
-    const ok = await SupabaseService.seedInitialData(products, customers, suppliers, sales);
+    const ok = await SupabaseService.seedInitialData(products, customers, suppliers, sales, branches);
     setLoading(false);
     if (ok) {
       setSyncMessage('¡Datos sincronizados exitosamente a tu base de datos Supabase!');
