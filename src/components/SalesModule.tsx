@@ -17,6 +17,7 @@ import {
   Trash2,
   Store,
 } from 'lucide-react';
+import { ShiftCloseReceiptModal } from './ShiftCloseReceiptModal';
 
 interface SalesModuleProps {
   sales: Sale[];
@@ -42,6 +43,8 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
   const [cancelModalSale, setCancelModalSale] = useState<Sale | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [showShiftCloseModal, setShowShiftCloseModal] = useState(false);
+  const [shiftBranchId, setShiftBranchId] = useState<string>('all');
+  const [shiftCloseReceiptData, setShiftCloseReceiptData] = useState<any | null>(null);
 
   const filtered = sales.filter((s) => {
     const matchStatus = statusFilter === 'Todos' || s.status === statusFilter;
@@ -54,8 +57,10 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
     return matchStatus && matchBranch && matchSearch;
   });
 
-  // Calculate Metrics for Shift / Day
-  const activeSales = sales.filter((s) => s.status === 'Completada');
+  // Calculate Metrics for Shift / Day filtered by selected branch
+  const activeSales = sales.filter(
+    (s) => s.status === 'Completada' && (branchFilter === 'Todas' || s.branchId === branchFilter)
+  );
   const totalRevenue = activeSales.reduce((acc, s) => acc + s.total, 0);
   const cashRevenue = activeSales
     .filter((s) => s.paymentMethod === 'Efectivo')
@@ -69,6 +74,27 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 
   const averageTicket = activeSales.length > 0 ? totalRevenue / activeSales.length : 0;
 
+  // Branch selected label
+  const selectedBranchObj = branches.find((b) => b.id === branchFilter);
+  const activeBranchLabel = branchFilter === 'Todas' ? 'Todas las Sucursales' : (selectedBranchObj?.name || 'Sucursal Seleccionada');
+
+  // Calculations for Shift Close Modal
+  const modalTargetBranch = branches.find((b) => b.id === shiftBranchId);
+  const shiftModalSales = sales.filter(
+    (s) => s.status === 'Completada' && (shiftBranchId === 'all' || s.branchId === shiftBranchId)
+  );
+  const shiftModalTotal = shiftModalSales.reduce((acc, s) => acc + s.total, 0);
+  const shiftModalCash = shiftModalSales
+    .filter((s) => s.paymentMethod === 'Efectivo')
+    .reduce((acc, s) => acc + s.total, 0);
+  const shiftModalCard = shiftModalSales
+    .filter((s) => s.paymentMethod === 'Tarjeta de Crédito / Débito')
+    .reduce((acc, s) => acc + s.total, 0);
+  const shiftModalTransfer = shiftModalSales
+    .filter((s) => s.paymentMethod === 'Transferencia SPEI')
+    .reduce((acc, s) => acc + s.total, 0);
+  const shiftModalAvg = shiftModalSales.length > 0 ? shiftModalTotal / shiftModalSales.length : 0;
+
   const handleConfirmCancel = () => {
     if (!cancelModalSale) return;
     if (!cancelReason.trim()) {
@@ -78,6 +104,30 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
     onCancelSale(cancelModalSale.id, cancelReason);
     setCancelModalSale(null);
     setCancelReason('');
+  };
+
+  const handleGenerateShiftReceipt = () => {
+    const branchName = shiftBranchId === 'all' 
+      ? 'Consolidado General (Todas las Sucursales)' 
+      : (modalTargetBranch?.name || 'Sucursal Matriz');
+
+    const firstFolio = shiftModalSales.length > 0 ? shiftModalSales[shiftModalSales.length - 1].folio : undefined;
+    const lastFolio = shiftModalSales.length > 0 ? shiftModalSales[0].folio : undefined;
+
+    setShiftCloseReceiptData({
+      branchName,
+      cashierName: `${currentRole} - Corte Z`,
+      date: new Date().toISOString(),
+      totalSalesCount: shiftModalSales.length,
+      totalRevenue: shiftModalTotal,
+      cashRevenue: shiftModalCash,
+      cardRevenue: shiftModalCard,
+      transferRevenue: shiftModalTransfer,
+      averageTicket: shiftModalAvg,
+      firstFolio,
+      lastFolio,
+    });
+    setShowShiftCloseModal(false);
   };
 
   return (
@@ -362,11 +412,14 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
       {/* SHIFT CLOSE (CORTE Z) MODAL */}
       {showShiftCloseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="bg-[#0F172A] p-4 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold">Corte de Caja / Cierre de Turno</h3>
+                <div>
+                  <h3 className="text-base font-bold">Corte de Caja / Cierre de Turno Z</h3>
+                  <p className="text-xs text-slate-400">Auditoría y arqueo de valores por sucursal</p>
+                </div>
               </div>
               <button onClick={() => setShowShiftCloseModal(false)} className="p-1 text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -374,52 +427,89 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
             </div>
 
             <div className="p-6 space-y-4 text-xs sm:text-sm text-slate-700">
-              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-2">
-                <p className="font-bold text-amber-900 text-sm">Resumen del Turno Actual</p>
-                <div className="space-y-1.5 text-xs text-amber-950">
+              {/* Branch Selector for Shift Close */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Seleccionar Sucursal para el Corte:
+                </label>
+                <div className="relative">
+                  <select
+                    value={shiftBranchId}
+                    onChange={(e) => setShiftBranchId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="all">🌐 Todas las Sucursales (Consolidado General)</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        🏢 {b.name} {b.isMain ? '⭐ (Matriz)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-amber-50/80 p-4 rounded-xl border border-amber-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-amber-950 text-sm">
+                    {shiftBranchId === 'all' ? 'Balance General Consolidado' : (modalTargetBranch?.name || 'Balance de Sucursal')}
+                  </p>
+                  <span className="text-xs font-extrabold px-2 py-0.5 rounded bg-amber-200 text-amber-900">
+                    {shiftModalSales.length} {shiftModalSales.length === 1 ? 'ticket' : 'tickets'}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-amber-950 pt-1">
                   <div className="flex justify-between">
-                    <span>Efectivo contado en caja:</span>
-                    <span className="font-bold font-mono">${cashRevenue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                    <span>1. Efectivo contado en caja:</span>
+                    <span className="font-bold font-mono">${shiftModalCash.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Tarjeta bancaria:</span>
-                    <span className="font-bold font-mono">${cardRevenue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                    <span>2. Tarjetas bancarias:</span>
+                    <span className="font-bold font-mono">${shiftModalCard.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Transferencias SPEI:</span>
-                    <span className="font-bold font-mono">${transferRevenue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                    <span>3. Transferencias SPEI:</span>
+                    <span className="font-bold font-mono">${shiftModalTransfer.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between pt-1 border-t border-amber-300 font-extrabold text-sm">
-                    <span>Gran Total Turno:</span>
-                    <span className="text-[#E6007E] font-mono">${totalRevenue.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                  <div className="flex justify-between pt-1.5 border-t border-amber-300 font-extrabold text-sm">
+                    <span>TOTAL VALORES TURNO:</span>
+                    <span className="text-[#E6007E] font-mono text-base font-black">${shiftModalTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500">
-                Al confirmar el corte Z, se generará el balance del turno para contabilidad y el supervisor en turno.
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Al confirmar, se generará el Comprobante Oficial de Corte Z listo para imprimir en impresora térmica o guardar como PDF.
               </p>
 
               <div className="flex gap-2 pt-2">
                 <button
+                  type="button"
                   onClick={() => setShowShiftCloseModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold"
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
                 >
-                  Volver
+                  Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    alert('Corte de caja Z completado con éxito. Balance guardado e impreso.');
-                    setShowShiftCloseModal(false);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold shadow-sm"
+                  type="button"
+                  onClick={handleGenerateShiftReceipt}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
                 >
-                  Imprimir Corte Z
+                  <Printer className="w-4 h-4" />
+                  <span>Generar e Imprimir Corte Z</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* RENDER SHIFT CLOSE PRINTABLE MODAL */}
+      {shiftCloseReceiptData && (
+        <ShiftCloseReceiptModal
+          data={shiftCloseReceiptData}
+          onClose={() => setShiftCloseReceiptData(null)}
+        />
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import {
   Sale,
   Supplier,
   UserRole,
+  StockTransfer,
 } from './types';
 import {
   INITIAL_PRODUCTS,
@@ -14,6 +15,7 @@ import {
   INITIAL_SUPPLIERS,
   INITIAL_SALES,
   INITIAL_BRANCHES,
+  INITIAL_TRANSFERS,
 } from './data/initialData';
 import { RoleSelector } from './components/RoleSelector';
 import { Header } from './components/Header';
@@ -93,6 +95,13 @@ export default function App() {
     return hasCleared ? [] : INITIAL_SALES;
   });
 
+  const [transfers, setTransfers] = useState<StockTransfer[]>(() => {
+    const hasCleared = localStorage.getItem('pb_cleared_test_data') === 'true';
+    const saved = localStorage.getItem('pb_transfers');
+    if (saved) return JSON.parse(saved);
+    return hasCleared ? [] : INITIAL_TRANSFERS;
+  });
+
   // Receipt Modal State
   const [activeReceiptSale, setActiveReceiptSale] = useState<Sale | null>(null);
 
@@ -162,6 +171,36 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('pb_active_branch_id', activeBranchId);
   }, [activeBranchId]);
+
+  useEffect(() => {
+    localStorage.setItem('pb_transfers', JSON.stringify(transfers));
+  }, [transfers]);
+
+  // Handle Stock Transfers between branches
+  const handlePerformTransfer = (transfer: StockTransfer) => {
+    setTransfers((prev) => [transfer, ...prev]);
+
+    setProducts((prev) => {
+      return prev.map((prod) => {
+        if (prod.id === transfer.productId) {
+          const currentBranchStocks = prod.branchStocks ? { ...prod.branchStocks } : {};
+          const sourceStock = currentBranchStocks[transfer.sourceBranchId] ?? prod.stock;
+          const targetStock = currentBranchStocks[transfer.targetBranchId] ?? 0;
+
+          currentBranchStocks[transfer.sourceBranchId] = Math.max(0, sourceStock - transfer.quantity);
+          currentBranchStocks[transfer.targetBranchId] = targetStock + transfer.quantity;
+
+          const updatedProd = {
+            ...prod,
+            branchStocks: currentBranchStocks,
+          };
+          SupabaseService.upsertProduct(updatedProd);
+          return updatedProd;
+        }
+        return prod;
+      });
+    });
+  };
 
   // Handle Role Selection
   const handleSelectRole = (role: UserRole) => {
@@ -377,12 +416,14 @@ export default function App() {
     setSuppliers([]);
     setSales([]);
     setBranches([]);
+    setTransfers([]);
     localStorage.setItem('pb_cleared_test_data', 'true');
     localStorage.setItem('pb_products', '[]');
     localStorage.setItem('pb_customers', '[]');
     localStorage.setItem('pb_suppliers', '[]');
     localStorage.setItem('pb_sales', '[]');
     localStorage.setItem('pb_branches', '[]');
+    localStorage.setItem('pb_transfers', '[]');
   };
 
   // Handler: Restore Initial Defaults Demo Data
@@ -397,12 +438,14 @@ export default function App() {
     setSuppliers(data.suppliers);
     setSales(data.sales);
     setBranches(INITIAL_BRANCHES);
+    setTransfers(INITIAL_TRANSFERS);
     localStorage.removeItem('pb_cleared_test_data');
     localStorage.setItem('pb_products', JSON.stringify(data.products));
     localStorage.setItem('pb_customers', JSON.stringify(data.customers));
     localStorage.setItem('pb_suppliers', JSON.stringify(data.suppliers));
     localStorage.setItem('pb_sales', JSON.stringify(data.sales));
     localStorage.setItem('pb_branches', JSON.stringify(INITIAL_BRANCHES));
+    localStorage.setItem('pb_transfers', JSON.stringify(INITIAL_TRANSFERS));
     await SupabaseService.seedInitialData(
       data.products,
       data.customers,
@@ -491,11 +534,13 @@ export default function App() {
               currentRole={currentRole}
               products={products}
               sales={sales}
+              transfers={transfers}
               onSelectBranch={setActiveBranchId}
               onAddBranch={handleAddBranch}
               onUpdateBranch={handleUpdateBranch}
               onDeleteBranch={handleDeleteBranch}
               onToggleBlockBranch={handleToggleBlockBranch}
+              onPerformTransfer={handlePerformTransfer}
             />
           )}
 

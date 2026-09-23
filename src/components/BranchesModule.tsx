@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Branch, Product, Sale, UserRole } from '../types';
+import { Branch, Product, Sale, UserRole, StockTransfer } from '../types';
 import {
   Building2,
   Plus,
@@ -21,13 +21,19 @@ import {
   ExternalLink,
   AlertCircle,
   X,
+  ArrowLeftRight,
+  ArrowRight,
+  Printer,
+  FileText,
 } from 'lucide-react';
+import { TransferReceiptModal } from './TransferReceiptModal';
 
 interface BranchesModuleProps {
   branches: Branch[];
   activeBranchId: string;
   products?: Product[];
   sales?: Sale[];
+  transfers?: StockTransfer[];
   currentRole: UserRole;
   onSelectActiveBranch?: (branchId: string) => void;
   onSelectBranch?: (branchId: string) => void;
@@ -35,6 +41,7 @@ interface BranchesModuleProps {
   onUpdateBranch: (branch: Branch) => void;
   onDeleteBranch: (branchId: string) => void;
   onToggleBlockBranch?: (branchId: string) => void;
+  onPerformTransfer?: (transfer: StockTransfer) => void;
   onNavigateToModule?: (module: 'pos' | 'products' | 'metrics') => void;
 }
 
@@ -43,6 +50,7 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
   activeBranchId,
   products = [],
   sales = [],
+  transfers = [],
   currentRole,
   onSelectActiveBranch,
   onSelectBranch,
@@ -50,12 +58,24 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
   onUpdateBranch,
   onDeleteBranch,
   onToggleBlockBranch,
+  onPerformTransfer,
   onNavigateToModule,
 }) => {
+  const [activeTab, setActiveTab] = useState<'branches' | 'transfers'>('branches');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'Todas' | 'Activas' | 'Bloqueadas'>('Todas');
   const [showModal, setShowModal] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+
+  // Transfer State
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferSourceId, setTransferSourceId] = useState<string>(branches[0]?.id || '');
+  const [transferTargetId, setTransferTargetId] = useState<string>(branches[1]?.id || branches[0]?.id || '');
+  const [transferProductId, setTransferProductId] = useState<string>(products[0]?.id || '');
+  const [transferQuantity, setTransferQuantity] = useState<number>(1);
+  const [transferReason, setTransferReason] = useState<string>('Reabastecimiento de piso de venta');
+  const [transferPerformedBy, setTransferPerformedBy] = useState<string>(currentRole);
+  const [viewingTransferReceipt, setViewingTransferReceipt] = useState<StockTransfer | null>(null);
 
   const handleSelectBranch = (id: string) => {
     if (onSelectActiveBranch) onSelectActiveBranch(id);
@@ -162,6 +182,78 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
     onDeleteBranch(branch.id);
   };
 
+  // Transfer Handlers
+  const handleOpenTransferModal = (prefillSourceId?: string, prefillProductId?: string) => {
+    if (branches.length < 2) {
+      alert('Se requieren al menos 2 sucursales registradas para realizar traspasos de inventario.');
+      return;
+    }
+    const srcId = prefillSourceId || activeBranchId || branches[0]?.id;
+    const tgtId = branches.find((b) => b.id !== srcId)?.id || branches[1]?.id;
+    setTransferSourceId(srcId);
+    setTransferTargetId(tgtId);
+    if (prefillProductId) {
+      setTransferProductId(prefillProductId);
+    } else if (products.length > 0) {
+      setTransferProductId(products[0].id);
+    }
+    setTransferQuantity(1);
+    setTransferReason('Reabastecimiento de piso de venta');
+    setTransferPerformedBy(currentRole);
+    setShowTransferModal(true);
+  };
+
+  const handleConfirmTransfer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferSourceId || !transferTargetId) {
+      alert('Debes seleccionar sucursal de origen y sucursal de destino.');
+      return;
+    }
+    if (transferSourceId === transferTargetId) {
+      alert('La sucursal de origen y de destino no pueden ser la misma.');
+      return;
+    }
+    const selectedProd = products.find((p) => p.id === transferProductId);
+    if (!selectedProd) {
+      alert('Selecciona un producto válido para transferir.');
+      return;
+    }
+    const currentSourceStock = selectedProd.branchStocks?.[transferSourceId] ?? 0;
+    if (transferQuantity <= 0) {
+      alert('La cantidad a transferir debe ser al menos 1 pieza.');
+      return;
+    }
+    if (transferQuantity > currentSourceStock) {
+      alert(`Stock insuficiente en origen. La sucursal solo cuenta con ${currentSourceStock} piezas disponibles de este producto.`);
+      return;
+    }
+
+    const srcBranch = branches.find((b) => b.id === transferSourceId);
+    const tgtBranch = branches.find((b) => b.id === transferTargetId);
+
+    const newTransfer: StockTransfer = {
+      id: `trf-${Date.now()}`,
+      folio: `TRF-${String(transfers.length + 1).padStart(3, '0')}`,
+      sourceBranchId: transferSourceId,
+      sourceBranchName: srcBranch?.name || 'Sucursal Origen',
+      targetBranchId: transferTargetId,
+      targetBranchName: tgtBranch?.name || 'Sucursal Destino',
+      productId: selectedProd.id,
+      productName: selectedProd.name,
+      productSku: selectedProd.sku,
+      quantity: Number(transferQuantity),
+      date: new Date().toISOString(),
+      reason: transferReason.trim() || 'Traspaso de inventario',
+      performedBy: transferPerformedBy.trim() || currentRole,
+    };
+
+    if (onPerformTransfer) {
+      onPerformTransfer(newTransfer);
+    }
+    setShowTransferModal(false);
+    setViewingTransferReceipt(newTransfer);
+  };
+
   // Filtered branches
   const filteredBranches = branches.filter((b) => {
     const matchesSearch =
@@ -203,66 +295,109 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
 
   return (
     <div id="branches-module" className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 bg-[#F4F5F7]">
-      {/* Header & New Branch CTA */}
+      {/* Header & New Branch / Transfer CTA */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl sm:text-2xl font-black text-[#0F172A] tracking-tight">
-              Control de Sucursales y Puntos de Venta
+              Control de Sucursales y Traspasos
             </h2>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-pink-100 text-[#E6007E] border border-pink-200">
               {branches.length} {branches.length === 1 ? 'Sucursal' : 'Sucursales'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Administra tus tiendas físicas, inventarios independientes, bloqueos operativos y navega entre cada sucursal.
+            Administra tus tiendas físicas, inventarios independientes, transferencias entre sucursales y puntos de venta.
           </p>
         </div>
 
-        {currentRole === 'Admin' && (
-          <button
-            id="btn-new-branch"
-            onClick={handleOpenCreate}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E6007E] hover:bg-[#D60072] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Crear Nueva Sucursal</span>
-          </button>
-        )}
-      </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {branches.length >= 2 && (
+            <button
+              id="btn-new-transfer"
+              onClick={() => handleOpenTransferModal()}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              <ArrowLeftRight className="w-4 h-4 stroke-[2.5]" />
+              <span>Nuevo Traspaso</span>
+            </button>
+          )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Sucursales</p>
-            <p className="text-2xl font-black text-[#0F172A] mt-1">{totalGlobalBranches}</p>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-pink-50 flex items-center justify-center text-[#E6007E]">
-            <Store className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sucursales Activas</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">{activeBranchesCount}</p>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bloqueadas / Pausa</p>
-            <p className="text-2xl font-black text-amber-600 mt-1">{blockedBranchesCount}</p>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-            <Lock className="w-6 h-6" />
-          </div>
+          {currentRole === 'Admin' && (
+            <button
+              id="btn-new-branch"
+              onClick={handleOpenCreate}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E6007E] hover:bg-[#D60072] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span>Crear Sucursal</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('branches')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'branches'
+              ? 'bg-[#0F172A] text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          <span>Tiendas y Sucursales ({branches.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('transfers')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'transfers'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <ArrowLeftRight className="w-4 h-4" />
+          <span>Traspasos de Inventario ({transfers.length})</span>
+        </button>
+      </div>
+
+      {activeTab === 'branches' && (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Sucursales</p>
+                <p className="text-2xl font-black text-[#0F172A] mt-1">{totalGlobalBranches}</p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-pink-50 flex items-center justify-center text-[#E6007E]">
+                <Store className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sucursales Activas</p>
+                <p className="text-2xl font-black text-emerald-600 mt-1">{activeBranchesCount}</p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bloqueadas / Pausa</p>
+                <p className="text-2xl font-black text-amber-600 mt-1">{blockedBranchesCount}</p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                <Lock className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
 
       {/* Search and Filter Bar */}
       <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -460,6 +595,335 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
           );
         })}
       </div>
+      </>
+      )}
+
+      {/* TRANSFERS VIEW TAB */}
+      {activeTab === 'transfers' && (
+        <div className="space-y-6">
+          {/* Transfer KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Traspasos</p>
+                <p className="text-2xl font-black text-purple-700 mt-1">{transfers.length}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Operaciones registradas</p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                <ArrowLeftRight className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Piezas Movilizadas</p>
+                <p className="text-2xl font-black text-[#0F172A] mt-1">
+                  {transfers.reduce((acc, t) => acc + t.quantity, 0)} <span className="text-sm font-semibold text-slate-400">pzas</span>
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Control de existencias</p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                <Package className="w-6 h-6" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sucursales Conectadas</p>
+                <p className="text-2xl font-black text-emerald-600 mt-1">{branches.length}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Red de distribución</p>
+              </div>
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <Building2 className="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          {/* Transfers Table Card */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-black text-[#0F172A] text-base">Historial de Traspasos de Mercancía</h3>
+                <p className="text-xs text-slate-400">
+                  Control de auditoría y remisiones de movimiento entre almacenes de sucursales.
+                </p>
+              </div>
+              {branches.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenTransferModal()}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition active:scale-95 cursor-pointer self-start sm:self-auto"
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" />
+                  <span>Crear Nuevo Traspaso</span>
+                </button>
+              )}
+            </div>
+
+            {transfers.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto">
+                  <ArrowLeftRight className="w-6 h-6" />
+                </div>
+                <h4 className="font-bold text-slate-700 text-sm">No hay traspasos registrados</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Mueve inventario entre sucursales para abastecer los puntos de venta con mayor demanda.
+                </p>
+                {branches.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenTransferModal()}
+                    className="px-4 py-2 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700"
+                  >
+                    Hacer Traspaso Ahora
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-600">
+                  <thead className="bg-slate-50 text-slate-400 font-bold uppercase text-[10px] tracking-wider border-b border-slate-100">
+                    <tr>
+                      <th className="py-3 px-4">Folio Vale</th>
+                      <th className="py-3 px-4">Fecha y Hora</th>
+                      <th className="py-3 px-4">Ruta (Origen → Destino)</th>
+                      <th className="py-3 px-4">Producto / SKU</th>
+                      <th className="py-3 px-4 text-center">Cantidad</th>
+                      <th className="py-3 px-4">Motivo</th>
+                      <th className="py-3 px-4">Responsable</th>
+                      <th className="py-3 px-4 text-right">Comprobante</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium">
+                    {transfers.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/70 transition">
+                        <td className="py-3 px-4 font-mono font-bold text-purple-700">
+                          {t.folio}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                          {new Date(t.date).toLocaleDateString('es-MX', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 font-bold text-slate-700 text-[11px]">
+                              {t.sourceBranchName}
+                            </span>
+                            <ArrowRight className="w-3 h-3 text-purple-500 shrink-0" />
+                            <span className="px-2 py-0.5 rounded bg-purple-50 font-bold text-purple-700 text-[11px]">
+                              {t.targetBranchName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <p className="font-bold text-slate-900 line-clamp-1">{t.productName}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">SKU: {t.productSku}</p>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black bg-purple-100 text-purple-800">
+                            {t.quantity} pzas
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 max-w-xs truncate" title={t.reason}>
+                          {t.reason}
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
+                          {t.performedBy}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setViewingTransferReceipt(t)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 font-bold text-xs transition cursor-pointer active:scale-95"
+                            title="Ver e imprimir vale oficial"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Vale</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL NUEVO TRASPASO DE INVENTARIO */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 overflow-y-auto max-h-[92vh]">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <ArrowLeftRight className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#0F172A]">Nuevo Traspaso entre Sucursales</h3>
+                  <p className="text-xs text-slate-500">Mueve existencias de almacén con registro de vale oficial</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTransferModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmTransfer} className="mt-4 space-y-4 text-xs">
+              {/* Origen y Destino */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Sucursal Origen (Salida) *</label>
+                  <select
+                    value={transferSourceId}
+                    onChange={(e) => {
+                      const newSrc = e.target.value;
+                      setTransferSourceId(newSrc);
+                      if (transferTargetId === newSrc) {
+                        const fallbackTgt = branches.find((b) => b.id !== newSrc)?.id || '';
+                        setTransferTargetId(fallbackTgt);
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-purple-500"
+                  >
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} {!b.isActive ? '(Bloqueada)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Sucursal Destino (Entrada) *</label>
+                  <select
+                    value={transferTargetId}
+                    onChange={(e) => setTransferTargetId(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-purple-500"
+                  >
+                    {branches
+                      .filter((b) => b.id !== transferSourceId)
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} {!b.isActive ? '(Bloqueada)' : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Producto a Transferir */}
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Producto a Traspasar *</label>
+                <select
+                  value={transferProductId}
+                  onChange={(e) => setTransferProductId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:outline-none focus:border-purple-500"
+                >
+                  {products.map((p) => {
+                    const currentStock = p.branchStocks?.[transferSourceId] ?? 0;
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (Disp: {currentStock} pzas) - {p.sku}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Indicador de Disponibilidad */}
+              {(() => {
+                const prod = products.find((p) => p.id === transferProductId);
+                const available = prod?.branchStocks?.[transferSourceId] ?? 0;
+                return (
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Existencias actuales en origen:</span>
+                    <span className={`font-mono font-bold px-2 py-0.5 rounded ${
+                      available > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {available} piezas disponibles
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* Cantidad y Motivo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Cantidad de Piezas *</label>
+                  <input
+                    type="number"
+                    min={1}
+                    required
+                    value={transferQuantity}
+                    onChange={(e) => setTransferQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Autorizado por</label>
+                  <input
+                    type="text"
+                    required
+                    value={transferPerformedBy}
+                    onChange={(e) => setTransferPerformedBy(e.target.value)}
+                    placeholder="Nombre o rol"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Motivo o Justificación del Traspaso *</label>
+                <input
+                  type="text"
+                  required
+                  value={transferReason}
+                  onChange={(e) => setTransferReason(e.target.value)}
+                  placeholder="Ej: Pedido urgente de cliente, reabastecimiento..."
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  <span>Confirmar y Generar Vale</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL IMPRESIÓN DE VALE DE TRASPASO */}
+      {viewingTransferReceipt && (
+        <TransferReceiptModal
+          transfer={viewingTransferReceipt}
+          onClose={() => setViewingTransferReceipt(null)}
+        />
+      )}
 
       {/* Modal Crear / Editar Sucursal */}
       {showModal && (

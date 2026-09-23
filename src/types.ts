@@ -117,5 +117,21 @@ export interface UserProfile {
   joinedDate?: string;
 }
 
+export interface StockTransfer {
+  id: string;
+  folio: string;
+  sourceBranchId: string;
+  sourceBranchName: string;
+  targetBranchId: string;
+  targetBranchName: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  date: string;
+  reason?: string;
+  performedBy: string;
+}
+
 export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics' | 'profile' | 'branches';
 

@@ -1,4 +1,4 @@
-import { Customer, Product, Supplier, Sale, Branch } from '../types';
+import { Customer, Product, Supplier, Sale, Branch, StockTransfer } from '../types';
 
 const RAW_PRODUCTS: Product[] = [
   // Mobiliario (Sillones, Lavacabezas, Estaciones) - Pastel Azul/Celeste
@@ -472,3 +472,37 @@ export const INITIAL_SALES: Sale[] = [
     status: 'Completada',
   }
 ];
+
+export const INITIAL_TRANSFERS: StockTransfer[] = [
+  {
+    id: 'trf-1',
+    folio: 'TRF-001',
+    sourceBranchId: 'branch-1',
+    sourceBranchName: 'Sucursal 1 - Matriz (Principal)',
+    targetBranchId: 'branch-2',
+    targetBranchName: 'Sucursal 2 - Plaza San Jerónimo',
+    productId: 'prod-1',
+    productName: 'Sillón Hidráulico Reclinable Roma',
+    productSku: 'MOB-SIL-01',
+    quantity: 2,
+    date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    reason: 'Reabastecimiento de piso de venta para fin de semana',
+    performedBy: 'Administrador General',
+  },
+  {
+    id: 'trf-2',
+    folio: 'TRF-002',
+    sourceBranchId: 'branch-1',
+    sourceBranchName: 'Sucursal 1 - Matriz (Principal)',
+    targetBranchId: 'branch-3',
+    targetBranchName: 'Sucursal 3 - Insurgentes Sur',
+    productId: 'prod-7',
+    productName: 'Secadora Profesional Iónica Turbonegra 3900',
+    productSku: 'APA-SEC-01',
+    quantity: 3,
+    date: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+    reason: 'Traspaso por pedido urgente de cliente mayorista',
+    performedBy: 'Lic. Mariana Valdez',
+  }
+];
+
