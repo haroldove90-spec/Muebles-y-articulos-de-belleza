@@ -268,11 +268,11 @@ export const POSModule: React.FC<POSModuleProps> = ({
 
   // Calculations
   const rawSubtotal = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+    return cart.reduce((acc, item) => acc + item.unitPrice * (item.quantity || 0), 0);
   }, [cart]);
 
   const totalCartItems = useMemo(() => {
-    return cart.reduce((acc, item) => acc + item.quantity, 0);
+    return cart.reduce((acc, item) => acc + (item.quantity || 0), 0);
   }, [cart]);
 
   const discountAmount = useMemo(() => {
@@ -290,6 +290,13 @@ export const POSModule: React.FC<POSModuleProps> = ({
   // Open Payment modal
   const handleOpenPayment = () => {
     if (cart.length === 0) return;
+    // Normalize any 0 or empty quantity before opening payment
+    setCart((prev) =>
+      prev.map((it) => ({
+        ...it,
+        quantity: Math.max(1, it.quantity || 1),
+      }))
+    );
     setAmountReceived(Math.ceil(totalAmount).toString());
     setShowPaymentModal(true);
   };
@@ -763,46 +770,45 @@ export const POSModule: React.FC<POSModuleProps> = ({
                       </p>
                     </div>
 
-                    {/* Qty Controls */}
-                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90 cursor-pointer"
-                        title="Restar 1"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
+                    {/* Cantidad Manual (Sin flechas ni botones +/-) */}
+                    <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-2.5 py-1 shadow-2xs focus-within:border-[#E6007E] focus-within:ring-2 focus-within:ring-pink-100 transition">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase select-none">
+                        Cant:
+                      </span>
                       <input
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={item.quantity}
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        placeholder="1"
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           const clean = e.target.value.replace(/[^0-9]/g, '');
-                          const val = clean === '' ? 1 : Math.max(1, parseInt(clean, 10));
+                          const val = clean === '' ? 0 : parseInt(clean, 10);
                           setCart((prev) =>
-                            prev.map((it) => (it.product.id === item.product.id ? { ...it, quantity: val } : it))
+                            prev.map((it) =>
+                              it.product.id === item.product.id ? { ...it, quantity: val } : it
+                            )
                           );
                         }}
-                        className="w-10 text-center text-xs font-black text-[#0F172A] bg-slate-50 border border-slate-300 rounded px-1 py-0.5 focus:outline-none focus:border-[#E6007E]"
+                        onBlur={() => {
+                          setCart((prev) =>
+                            prev.map((it) =>
+                              it.product.id === item.product.id && (!it.quantity || it.quantity < 1)
+                                ? { ...it, quantity: 1 }
+                                : it
+                            )
+                          );
+                        }}
+                        className="w-11 text-center text-xs font-black text-[#0F172A] bg-transparent focus:outline-none"
                         title="Escribe la cantidad manualmente"
                       />
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90 cursor-pointer"
-                        title="Sumar 1"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
                     </div>
 
                     {/* Subtotal & Delete */}
                     <div className="text-right shrink-0">
                       <p className="text-xs font-extrabold text-[#0F172A]">
-                        ${(item.unitPrice * item.quantity).toLocaleString('es-MX')}
+                        ${(item.unitPrice * (item.quantity || 0)).toLocaleString('es-MX')}
                       </p>
                       <button
                         onClick={() => removeFromCart(item.product.id)}

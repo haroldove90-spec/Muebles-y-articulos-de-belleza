@@ -175,6 +175,85 @@ CREATE TABLE IF NOT EXISTS public.stock_transfers (
 );
 
 -- ==============================================================================
+-- ACTUALIZACIÓN Y COMPATIBILIDAD DE COLUMNAS (Para tablas que ya existían previamente)
+-- Esto garantiza que las columnas como price1, price2, price3, branch_stocks, etc.
+-- se agreguen de inmediato aunque la tabla ya haya sido creada con anterioridad.
+-- ==============================================================================
+-- Tabla: branches
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS manager_name TEXT;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS is_main BOOLEAN DEFAULT false;
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Tabla: user_accounts
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS branch_id TEXT;
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS branch_name TEXT;
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE public.user_accounts ADD COLUMN IF NOT EXISTS bio TEXT;
+
+-- Tabla: profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS store_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+
+-- Tabla: products (Garantiza listas de precios P1, P2, P3 e inventario por sucursal)
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price1 NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price2 NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price3 NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_1 NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_2 NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS price_3 NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS wholesale_price NUMERIC(12, 2);
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS stock INTEGER DEFAULT 0;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS min_stock INTEGER DEFAULT 3;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS branch_stocks JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS image TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS specs JSONB;
+
+-- Tabla: customers
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS business_name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'Regular';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS total_spent NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Tabla: suppliers
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS contact_person TEXT;
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS credit_days INTEGER DEFAULT 30;
+ALTER TABLE public.suppliers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Tabla: stock_transfers
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS received_date TIMESTAMPTZ;
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS reason TEXT;
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS performed_by TEXT;
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS received_by TEXT;
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'En tránsito';
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.stock_transfers ADD COLUMN IF NOT EXISTS notes TEXT;
+
+-- Tabla: sales
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS customer_id TEXT;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS branch_id TEXT;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS branch_name TEXT;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS cashier_role TEXT;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS cashier_name TEXT;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS discount_total NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.sales ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Completada';
+
+-- ==============================================================================
 -- SEGURIDAD: POLÍTICAS RLS (Row Level Security) PERMISIVAS PARA ACCESO FRONTEND
 -- ==============================================================================
 ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
