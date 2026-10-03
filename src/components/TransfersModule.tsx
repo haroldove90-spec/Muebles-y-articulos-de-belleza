@@ -781,9 +781,11 @@ export const TransfersModule: React.FC<TransfersModuleProps> = ({
                     type="number"
                     min="1"
                     max={availableSourceStock}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-32 px-3 py-2 rounded-xl border border-slate-200 text-sm font-black font-mono focus:outline-none focus:border-purple-600"
+                    value={quantity || ''}
+                    placeholder="1"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setQuantity(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-32 px-3 py-2 rounded-xl border border-slate-200 text-sm font-black font-mono focus:outline-none focus:border-purple-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <span className="text-xs text-slate-500">
                     {availableSourceStock > 0

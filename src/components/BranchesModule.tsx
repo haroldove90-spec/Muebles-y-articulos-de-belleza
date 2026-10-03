@@ -1790,9 +1790,11 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
                     type="number"
                     min={1}
                     required
-                    value={transferQuantity}
-                    onChange={(e) => setTransferQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:outline-none focus:border-purple-500"
+                    value={transferQuantity || ''}
+                    placeholder="1"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setTransferQuantity(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm font-bold focus:outline-none focus:border-purple-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 

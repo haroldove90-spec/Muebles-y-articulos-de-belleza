@@ -713,9 +713,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                   <label className="font-bold text-slate-700 block mb-1">Costo Proveedor ($)</label>
                   <input
                     type="number"
-                    value={formData.costPrice || 0}
-                    onChange={(e) => setFormData({ ...formData, costPrice: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
+                    value={formData.costPrice || ''}
+                    placeholder="0"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -728,9 +730,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                   </div>
                   <input
                     type="number"
-                    value={formData.minStock || 3}
-                    onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
+                    value={formData.minStock || ''}
+                    placeholder="3"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -763,13 +767,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                         <input
                           type="number"
                           required
-                          value={formData.price1 ?? formData.price ?? 0}
+                          value={formData.price1 ?? formData.price ?? ''}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = e.target.value === '' ? 0 : Number(e.target.value);
                             setFormData({ ...formData, price: val, price1: val });
                           }}
                           placeholder="65"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-[#E6007E]"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-[#E6007E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
                     </div>
@@ -787,13 +792,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
                         <input
                           type="number"
-                          value={formData.price2 ?? formData.wholesalePrice ?? 0}
+                          value={formData.price2 ?? formData.wholesalePrice ?? ''}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) => {
-                            const val = Number(e.target.value);
+                            const val = e.target.value === '' ? 0 : Number(e.target.value);
                             setFormData({ ...formData, price2: val, wholesalePrice: val });
                           }}
                           placeholder="60"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-blue-600"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
                     </div>
@@ -811,10 +817,11 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
                         <input
                           type="number"
-                          value={formData.price3 ?? 0}
-                          onChange={(e) => setFormData({ ...formData, price3: Number(e.target.value) })}
+                          value={formData.price3 ?? ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => setFormData({ ...formData, price3: e.target.value === '' ? 0 : Number(e.target.value) })}
                           placeholder="57"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-purple-600"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-purple-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
                     </div>
@@ -996,9 +1003,14 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                               <input
                                 type="number"
                                 min="0"
-                                value={branchQty}
-                                onChange={(e) => handleBranchStockChange(b.id, parseInt(e.target.value) || 0)}
-                                className="w-full text-center px-2 py-2 rounded-xl border-2 border-pink-200 focus:border-[#E6007E] font-black text-base text-[#0F172A] focus:outline-none bg-pink-50/20"
+                                value={branchQty === 0 ? '' : branchQty}
+                                placeholder="0"
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                                  handleBranchStockChange(b.id, val);
+                                }}
+                                className="w-full text-center px-2 py-2 rounded-xl border-2 border-pink-200 focus:border-[#E6007E] font-black text-base text-[#0F172A] focus:outline-none bg-pink-50/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
                             </div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 block text-center">
