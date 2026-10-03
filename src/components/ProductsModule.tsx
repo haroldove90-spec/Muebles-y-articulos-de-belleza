@@ -720,7 +720,12 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-700 block mb-1">Stock Mínimo Alerta</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-bold text-slate-700 block">Stock Mínimo Alerta</label>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Total: <strong className="text-[#E6007E]">{formData.stock || 0} pzs</strong>
+                    </span>
+                  </div>
                   <input
                     type="number"
                     value={formData.minStock || 3}
@@ -915,6 +920,112 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                   )}
                 </div>
 
+                {/* SUCURSALES: Asignación de Stock Inicial por Sucursal (Exactamente como lo solicitó el cliente) */}
+                <div className="sm:col-span-2 bg-gradient-to-br from-pink-50/70 via-purple-50/50 to-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-pink-200/90 shadow-xs space-y-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-pink-200/60">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-[#E6007E] text-white flex items-center justify-center shadow-xs">
+                          <Store className="w-4 h-4" />
+                        </div>
+                        <span>Inventario por Sucursal (Asignación Directa)</span>
+                      </h4>
+                      <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
+                        Indica cuántas piezas se le mandan a cada sucursal (ej. 10 a Sucursal 1, 5 a Sucursal 2, 0 si no se envía):
+                      </p>
+                    </div>
+
+                    {/* Acciones rápidas de llenado masivo */}
+                    <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Llenado:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyStockToAllBranches(10)}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-pink-300 hover:bg-pink-50 text-[11px] font-bold text-slate-700 cursor-pointer shadow-2xs transition"
+                        title="Asignar 10 piezas a cada sucursal"
+                      >
+                        10 a todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyStockToAllBranches(5)}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-pink-300 hover:bg-pink-50 text-[11px] font-bold text-slate-700 cursor-pointer shadow-2xs transition"
+                        title="Asignar 5 piezas a cada sucursal"
+                      >
+                        5 a todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyStockToAllBranches(0)}
+                        className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-100 text-[11px] font-bold text-slate-600 cursor-pointer shadow-2xs transition"
+                        title="Poner en 0 todas las sucursales"
+                      >
+                        0 a todas
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tarjetas / bolitas interactivas para cada sucursal */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {branches.map((b) => {
+                      const branchQty = formData.branchStocks?.[b.id] ?? 0;
+                      return (
+                        <div
+                          key={b.id}
+                          className="bg-white p-3 rounded-2xl border-2 border-slate-200 hover:border-pink-300 shadow-2xs flex items-center justify-between gap-3 transition"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                                {b.code}
+                              </span>
+                              {b.isMain && (
+                                <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-pink-100 text-[#E6007E]">
+                                  Matriz
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs font-black text-slate-900 truncate mt-1" title={b.name}>
+                              {b.name}
+                            </p>
+                            <span className="text-[10px] text-slate-400">Piezas asignadas:</span>
+                          </div>
+
+                          <div className="w-24 shrink-0 text-right">
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                value={branchQty}
+                                onChange={(e) => handleBranchStockChange(b.id, parseInt(e.target.value) || 0)}
+                                className="w-full text-center px-2 py-2 rounded-xl border-2 border-pink-200 focus:border-[#E6007E] font-black text-base text-[#0F172A] focus:outline-none bg-pink-50/20"
+                              />
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 block text-center">
+                              piezas
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Barra de Suma Global Calculada */}
+                  <div className="pt-3 border-t border-pink-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>
+                        Total Inventario Global (Suma automática de todas las tiendas):
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <span className="text-base sm:text-lg font-black text-[#E6007E] bg-white px-3.5 py-1 rounded-xl border-2 border-pink-300 font-mono shadow-2xs">
+                        {formData.stock || 0} piezas
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="font-bold text-slate-700 block mb-1">Descripción / Especificaciones</label>
                   <textarea
@@ -942,95 +1053,6 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     />
                     <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#16A34A]"></div>
                   </label>
-                </div>
-
-                {/* Asignación de Stock Inicial por Sucursal */}
-                <div className="sm:col-span-2 bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                        <Building2 className="w-4 h-4 text-[#E6007E]" />
-                        <span>Distribución de Inventario por Sucursal</span>
-                      </h4>
-                      <p className="text-[11px] text-slate-500">
-                        Captura de una sola vez la cantidad de stock para cada sucursal:
-                      </p>
-                    </div>
-
-                    {/* Acciones rápidas de llenado masivo */}
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-bold text-slate-400 mr-1">Rápido:</span>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyStockToAllBranches(10)}
-                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer"
-                      >
-                        10 a todas
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyStockToAllBranches(20)}
-                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer"
-                      >
-                        20 a todas
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyStockToAllBranches(0)}
-                        className="px-2 py-0.5 rounded-md bg-white border border-slate-300 hover:bg-slate-100 text-[10px] font-bold text-slate-700 cursor-pointer"
-                      >
-                        0 a todas
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                    {branches.map((b) => {
-                      const branchQty = formData.branchStocks?.[b.id] ?? 0;
-                      return (
-                        <div
-                          key={b.id}
-                          className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between gap-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
-                                {b.code}
-                              </span>
-                              {b.isMain && (
-                                <span className="text-[9px] font-bold text-[#E6007E]">
-                                  (Matriz)
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs font-bold text-[#0F172A] truncate mt-0.5" title={b.name}>
-                              {b.name}
-                            </p>
-                          </div>
-
-                          <div className="w-20 shrink-0">
-                            <input
-                              type="number"
-                              min="0"
-                              value={branchQty}
-                              onChange={(e) => handleBranchStockChange(b.id, parseInt(e.target.value) || 0)}
-                              className="w-full text-center px-2 py-1.5 rounded-lg border border-slate-300 font-extrabold text-sm text-[#0F172A] focus:outline-none focus:border-[#E6007E]"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Barra de Suma Global Calculada */}
-                  <div className="mt-2 pt-2.5 border-t border-slate-200 flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600">
-                      Total Inventario Global (Suma automática):
-                    </span>
-                    <span className="text-sm sm:text-base font-black text-[#E6007E] bg-pink-50 px-3 py-1 rounded-xl border border-pink-200">
-                      {formData.stock || 0} piezas
-                    </span>
-                  </div>
                 </div>
               </div>
 
