@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Branch, Customer, Product, Sale, Supplier, UserProfile, UserRole } from '../types';
+import { Branch, Customer, Product, Sale, Supplier, UserProfile, UserRole, UserAccount, StockTransfer } from '../types';
 
 // The Supabase project details provided by user
 const RAW_URL = import.meta.env.VITE_SUPABASE_URL || 'https://yioyruhnrcenyxkkgvun.supabase.co';
@@ -314,7 +314,109 @@ export const SupabaseService = {
     }
   },
 
-  // Profiles (User data per role)
+  // User Accounts & Credentials per Branch
+  async fetchUserAccounts(): Promise<UserAccount[] | null> {
+    try {
+      const { data, error } = await supabase.from('user_accounts').select('*').order('created_at', { ascending: true });
+      if (error || !data || data.length === 0) return null;
+      return data.map((d: any) => ({
+        id: d.id,
+        username: d.username,
+        password: d.password,
+        name: d.name,
+        role: d.role as UserRole,
+        branchId: d.branch_id || undefined,
+        branchName: d.branch_name || undefined,
+        email: d.email || '',
+        phone: d.phone || '',
+        photoUrl: d.photo_url || undefined,
+        position: d.position || undefined,
+        bio: d.bio || undefined,
+        createdAt: d.created_at || new Date().toISOString(),
+      }));
+    } catch {
+      return null;
+    }
+  },
+
+  async upsertUserAccount(account: UserAccount) {
+    try {
+      await supabase.from('user_accounts').upsert({
+        id: account.id,
+        username: account.username,
+        password: account.password || null,
+        name: account.name,
+        role: account.role,
+        branch_id: account.branchId || null,
+        branch_name: account.branchName || null,
+        email: account.email || null,
+        phone: account.phone || null,
+        photo_url: account.photoUrl || null,
+        position: account.position || null,
+        bio: account.bio || null,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.warn('Supabase upsertUserAccount error:', err);
+    }
+  },
+
+  async deleteUserAccount(accountId: string) {
+    try {
+      await supabase.from('user_accounts').delete().eq('id', accountId);
+    } catch (err) {
+      console.warn('Supabase deleteUserAccount error:', err);
+    }
+  },
+
+  // Stock Transfers
+  async fetchTransfers(): Promise<StockTransfer[] | null> {
+    try {
+      const { data, error } = await supabase.from('stock_transfers').select('*').order('date', { ascending: false });
+      if (error || !data || data.length === 0) return null;
+      return data.map((d: any) => ({
+        id: d.id,
+        folio: d.folio,
+        sourceBranchId: d.source_branch_id,
+        sourceBranchName: d.source_branch_name,
+        targetBranchId: d.target_branch_id,
+        targetBranchName: d.target_branch_name,
+        productId: d.product_id,
+        productName: d.product_name,
+        productSku: d.product_sku,
+        quantity: Number(d.quantity),
+        date: d.date,
+        reason: d.reason || undefined,
+        performedBy: d.performed_by,
+      }));
+    } catch {
+      return null;
+    }
+  },
+
+  async insertTransfer(transfer: StockTransfer) {
+    try {
+      await supabase.from('stock_transfers').insert({
+        id: transfer.id,
+        folio: transfer.folio,
+        source_branch_id: transfer.sourceBranchId,
+        source_branch_name: transfer.sourceBranchName,
+        target_branch_id: transfer.targetBranchId,
+        target_branch_name: transfer.targetBranchName,
+        product_id: transfer.productId,
+        product_name: transfer.productName,
+        product_sku: transfer.productSku,
+        quantity: transfer.quantity,
+        date: transfer.date,
+        reason: transfer.reason || null,
+        performed_by: transfer.performedBy,
+      });
+    } catch (err) {
+      console.warn('Supabase insertTransfer error:', err);
+    }
+  },
+
+  // Profiles (User data per role / individual)
   async fetchProfile(role: UserRole): Promise<UserProfile | null> {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('role', role).maybeSingle();

@@ -1,11 +1,12 @@
 import React from 'react';
-import { Branch, UserRole } from '../types';
+import { Branch, UserRole, UserAccount } from '../types';
 import { Logo } from './Logo';
 import { PWAInstallModal } from './PWAInstallModal';
 import { LogOut, Shield, User, ShoppingBag, Menu, Database, Trash2, Store } from 'lucide-react';
 
 interface HeaderProps {
   currentRole: UserRole;
+  currentUser?: UserAccount | null;
   onLogout: () => void;
   branches?: Branch[];
   activeBranchId?: string;
@@ -19,6 +20,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   currentRole,
+  currentUser,
   onLogout,
   branches = [],
   activeBranchId,
@@ -127,8 +129,21 @@ export const Header: React.FC<HeaderProps> = ({
           title="Ver y actualizar mi perfil de usuario"
           className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold border shrink-0 transition hover:opacity-90 active:scale-95 cursor-pointer ${badge.bg}`}
         >
-          {badge.icon}
-          <span className="capitalize">{currentRole}</span>
+          {currentUser?.photoUrl ? (
+            <img
+              src={currentUser.photoUrl}
+              alt={currentUser.name}
+              className="w-4 h-4 rounded-full object-cover shrink-0 border border-current"
+            />
+          ) : (
+            badge.icon
+          )}
+          <span className="truncate max-w-[120px]">
+            {currentUser?.name || currentRole}
+          </span>
+          <span className="opacity-75 font-normal text-[10px] hidden md:inline">
+            ({currentRole})
+          </span>
         </button>
 
 

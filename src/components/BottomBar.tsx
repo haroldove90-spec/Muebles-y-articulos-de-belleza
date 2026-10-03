@@ -34,7 +34,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({
     },
     {
       id: 'branches',
-      label: 'Sucursales',
+      label: 'Multisucursales',
       icon: <Store className="w-5 h-5" />,
       allowedRoles: ['Admin'],
     },

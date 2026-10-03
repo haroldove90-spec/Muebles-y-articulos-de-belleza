@@ -1,4 +1,4 @@
-import { Customer, Product, Supplier, Sale, Branch, StockTransfer } from '../types';
+import { Customer, Product, Supplier, Sale, Branch, StockTransfer, UserAccount } from '../types';
 
 const RAW_PRODUCTS: Product[] = [
   // Mobiliario (Sillones, Lavacabezas, Estaciones) - Pastel Azul/Celeste
@@ -487,7 +487,7 @@ export const INITIAL_TRANSFERS: StockTransfer[] = [
     quantity: 2,
     date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     reason: 'Reabastecimiento de piso de venta para fin de semana',
-    performedBy: 'Administrador General',
+    performedBy: 'Emilio Administrador',
   },
   {
     id: 'trf-2',
@@ -502,7 +502,85 @@ export const INITIAL_TRANSFERS: StockTransfer[] = [
     quantity: 3,
     date: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
     reason: 'Traspaso por pedido urgente de cliente mayorista',
-    performedBy: 'Lic. Mariana Valdez',
+    performedBy: 'Harold Anguiano',
+  }
+];
+
+export const INITIAL_USER_ACCOUNTS: UserAccount[] = [
+  {
+    id: 'user-admin-emilio',
+    username: 'emilio',
+    password: 'AdminPassword2026!',
+    name: 'Emilio',
+    role: 'Admin',
+    branchId: 'branch-1',
+    branchName: 'Sucursal 1 - Matriz (Principal)',
+    email: 'emilio@palaciodebelleza.mx',
+    phone: '55-4123-9870',
+    position: 'Director General & Administrador',
+    bio: 'Supervisión ejecutiva, control financiero, administración multisucursales y altas de personal.',
+    photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=350',
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 'user-gerente-harold',
+    username: 'harold',
+    password: 'Gerente2026#',
+    name: 'Harold Anguiano',
+    role: 'Gerente',
+    branchId: 'branch-2',
+    branchName: 'Sucursal 2 - Plaza San Jerónimo',
+    email: 'harold@palaciodebelleza.mx',
+    phone: '55-7890-1234',
+    position: 'Gerente Operativo de Sucursal',
+    bio: 'Supervisión de piso de ventas, atención a clientes mayoristas y gestión de inventario en San Jerónimo.',
+    photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=350',
+    createdAt: '2026-02-01T10:00:00Z',
+  },
+  {
+    id: 'user-vendedor-sofia',
+    username: 'ventas_matriz',
+    password: 'Ventas2026!',
+    name: 'Sofía Morales',
+    role: 'Pos: ventas',
+    branchId: 'branch-1',
+    branchName: 'Sucursal 1 - Matriz (Principal)',
+    email: 'sofia.caja@palaciodebelleza.mx',
+    phone: '55-8765-4321',
+    position: 'Ejecutiva de Mostrador & Cajera POS',
+    bio: 'Atención personalizada al cliente, facturación rápida y cobros en punto de venta matriz.',
+    photoUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=350',
+    createdAt: '2026-01-15T09:00:00Z',
+  },
+  {
+    id: 'user-vendedor-carlos',
+    username: 'ventas_sanjeronimo',
+    password: 'Ventas2026!',
+    name: 'Carlos Mendoza',
+    role: 'Pos: ventas',
+    branchId: 'branch-2',
+    branchName: 'Sucursal 2 - Plaza San Jerónimo',
+    email: 'carlos.ventas@palaciodebelleza.mx',
+    phone: '55-2233-4455',
+    position: 'Vendedor de Mostrador POS',
+    bio: 'Ventas de mostrador, demostración de productos capilares y corte de caja diario.',
+    photoUrl: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=350',
+    createdAt: '2026-02-01T10:30:00Z',
+  },
+  {
+    id: 'user-gerente-analucia',
+    username: 'gerente_insurgentes',
+    password: 'Gerente2026#',
+    name: 'Ana Lucía Morales',
+    role: 'Gerente',
+    branchId: 'branch-3',
+    branchName: 'Sucursal 3 - Insurgentes Sur',
+    email: 'analucia@palaciodebelleza.mx',
+    phone: '55-5555-0303',
+    position: 'Gerente de Sucursal Insurgentes',
+    bio: 'Encargada de operaciones y ventas de mobiliario en Insurgentes Sur.',
+    photoUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=350',
+    createdAt: '2026-02-15T11:00:00Z',
   }
 ];
 

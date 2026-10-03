@@ -74,8 +74,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'branches',
-      label: 'Sucursales',
-      description: 'Gestión multitienda y matriz',
+      label: 'Gestión multisucursales',
+      description: 'Sucursales, roles, credenciales y traspasos',
       icon: <Store className="w-5 h-5" />,
       allowedRoles: ['Admin'], // Exclusivo del Administrador Principal
     },

@@ -50,7 +50,11 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
-  const sqlCode = `-- TABLAS PARA SUPABASE (Proyecto yioyruhnrcenyxkkgvun)
+  const sqlCode = `-- ==============================================================================
+-- PALACIO DE BELLEZA - ESQUEMA COMPLETO Y ACTUALIZADO PARA SUPABASE
+-- Proyecto: yioyruhnrcenyxkkgvun (Multi-sucursales, Roles, Credenciales y Traspasos)
+-- ==============================================================================
+
 -- 1. TABLA DE SUCURSALES (Multi-tienda y Matriz)
 CREATE TABLE IF NOT EXISTS public.branches (
     id TEXT PRIMARY KEY,
@@ -64,7 +68,25 @@ CREATE TABLE IF NOT EXISTS public.branches (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 2. TABLA DE PRODUCTOS (Con Precios P1, P2, P3 y Stock por Sucursal)
+-- 2. TABLA DE CUENTAS DE USUARIO Y CREDENCIALES POR SUCURSAL
+CREATE TABLE IF NOT EXISTS public.user_accounts (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL, -- 'Admin', 'Gerente', 'Pos: ventas'
+    branch_id TEXT REFERENCES public.branches(id) ON DELETE SET NULL,
+    branch_name TEXT,
+    email TEXT,
+    phone TEXT,
+    photo_url TEXT,
+    position TEXT,
+    bio TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- 3. TABLA DE PRODUCTOS (Con Precios P1, P2, P3 y Existencias por Sucursal)
 CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -85,7 +107,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 3. TABLA DE CLIENTES
+-- 4. TABLA DE CLIENTES Y SALONES
 CREATE TABLE IF NOT EXISTS public.customers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -99,7 +121,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 4. TABLA DE PROVEEDORES
+-- 5. TABLA DE PROVEEDORES
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id TEXT PRIMARY KEY,
     company_name TEXT NOT NULL,
@@ -113,7 +135,7 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 5. TABLA DE VENTAS (Con soporte para sucursal)
+-- 6. TABLA DE VENTAS Y TICKETS DE CAJA
 CREATE TABLE IF NOT EXISTS public.sales (
     id TEXT PRIMARY KEY,
     folio TEXT NOT NULL,
@@ -136,18 +158,65 @@ CREATE TABLE IF NOT EXISTS public.sales (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- HABILITAR RLS
+-- 7. TABLA DE TRASPASOS DE INVENTARIO ENTRE SUCURSALES
+CREATE TABLE IF NOT EXISTS public.stock_transfers (
+    id TEXT PRIMARY KEY,
+    folio TEXT NOT NULL,
+    source_branch_id TEXT REFERENCES public.branches(id) ON DELETE CASCADE,
+    source_branch_name TEXT NOT NULL,
+    target_branch_id TEXT REFERENCES public.branches(id) ON DELETE CASCADE,
+    target_branch_name TEXT NOT NULL,
+    product_id TEXT REFERENCES public.products(id) ON DELETE CASCADE,
+    product_name TEXT NOT NULL,
+    product_sku TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    date TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    reason TEXT,
+    performed_by TEXT NOT NULL
+);
+
+-- HABILITAR SEGURIDAD (RLS)
 ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_transfers ENABLE ROW LEVEL SECURITY;
 
+-- POLÍTICAS DE ACCESO
 CREATE POLICY "Allow anon all branches" ON public.branches FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon all user_accounts" ON public.user_accounts FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all products" ON public.products FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all customers" ON public.customers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Allow anon all suppliers" ON public.suppliers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Allow anon all sales" ON public.sales FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);`;
+CREATE POLICY "Allow anon all sales" ON public.sales FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow anon all stock_transfers" ON public.stock_transfers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- REGISTROS INICIALES DE SUCURSALES
+INSERT INTO public.branches (id, name, code, address, phone, manager_name, is_main, is_active)
+VALUES 
+  ('branch-1', 'Sucursal 1 - Matriz (Principal)', 'SUC-01', 'Av. Principal 101, Col. Centro, CDMX', '+52 55 5555 0101', 'Emilio', true, true),
+  ('branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'SUC-02', 'Plaza San Jerónimo Local 14, CDMX', '+52 55 5555 0202', 'Harold Anguiano', false, true),
+  ('branch-3', 'Sucursal 3 - Insurgentes Sur', 'SUC-03', 'Av. Insurgentes Sur 1420, CDMX', '+52 55 5555 0303', 'Ana Lucía Morales', false, true)
+ON CONFLICT (id) DO UPDATE SET 
+  name = EXCLUDED.name,
+  code = EXCLUDED.code,
+  manager_name = EXCLUDED.manager_name;
+
+-- REGISTROS INICIALES DE USUARIOS Y CREDENCIALES INDEPENDIENTES
+INSERT INTO public.user_accounts (id, username, password, name, role, branch_id, branch_name, email, phone, position, bio)
+VALUES
+  ('user-admin-emilio', 'emilio', 'AdminPassword2026!', 'Emilio', 'Admin', 'branch-1', 'Sucursal 1 - Matriz (Principal)', 'emilio@palaciodebelleza.mx', '55-4123-9870', 'Director General & Administrador', 'Supervisión ejecutiva, control financiero, gestión multisucursales y altas de personal.'),
+  ('user-gerente-harold', 'harold', 'Gerente2026#', 'Harold Anguiano', 'Gerente', 'branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'harold@palaciodebelleza.mx', '55-7890-1234', 'Gerente Operativo de Sucursal', 'Supervisión de piso de ventas, clientes mayoristas e inventario en San Jerónimo.'),
+  ('user-vendedor-sofia', 'ventas_matriz', 'Ventas2026!', 'Sofía Morales', 'Pos: ventas', 'branch-1', 'Sucursal 1 - Matriz (Principal)', 'sofia.caja@palaciodebelleza.mx', '55-8765-4321', 'Ejecutiva de Mostrador & Cajera POS', 'Atención personalizada al cliente y cobros en punto de venta matriz.'),
+  ('user-vendedor-carlos', 'ventas_sanjeronimo', 'Ventas2026!', 'Carlos Mendoza', 'Pos: ventas', 'branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'carlos.ventas@palaciodebelleza.mx', '55-2233-4455', 'Vendedor de Mostrador POS', 'Ventas de mostrador y cobros en terminal POS San Jerónimo.')
+ON CONFLICT (id) DO UPDATE SET 
+  name = EXCLUDED.name,
+  username = EXCLUDED.username,
+  password = EXCLUDED.password,
+  role = EXCLUDED.role,
+  branch_id = EXCLUDED.branch_id;`;
 
   useEffect(() => {
     checkConn();

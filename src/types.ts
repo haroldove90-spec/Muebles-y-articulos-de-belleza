@@ -104,13 +104,32 @@ export interface Supplier {
   isActive: boolean;
 }
 
+export interface UserAccount {
+  id: string;
+  username: string;
+  password?: string;
+  name: string;
+  role: UserRole;
+  branchId?: string;
+  branchName?: string;
+  email: string;
+  phone: string;
+  photoUrl?: string;
+  position?: string;
+  bio?: string;
+  createdAt?: string;
+}
+
 export interface UserProfile {
   id: string;
+  username?: string;
+  password?: string;
   role: UserRole;
   name: string;
   email: string;
   phone: string;
   photoUrl?: string;
+  branchId?: string;
   storeName?: string;
   position?: string;
   bio?: string;

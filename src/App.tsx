@@ -8,6 +8,7 @@ import {
   Supplier,
   UserRole,
   StockTransfer,
+  UserAccount,
 } from './types';
 import {
   INITIAL_PRODUCTS,
@@ -16,6 +17,7 @@ import {
   INITIAL_SALES,
   INITIAL_BRANCHES,
   INITIAL_TRANSFERS,
+  INITIAL_USER_ACCOUNTS,
 } from './data/initialData';
 import { RoleSelector } from './components/RoleSelector';
 import { Header } from './components/Header';
@@ -39,6 +41,31 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole | null>(() => {
     const saved = localStorage.getItem('pb_active_role');
     return (saved as UserRole) || null;
+  });
+
+  // User Accounts (per branch) state
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
+    const hasCleared = localStorage.getItem('pb_cleared_test_data') === 'true';
+    const saved = localStorage.getItem('pb_user_accounts');
+    if (saved) return JSON.parse(saved);
+    return hasCleared ? [] : INITIAL_USER_ACCOUNTS;
+  });
+
+  // Logged-in User Account
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    const saved = localStorage.getItem('pb_current_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    const savedRole = localStorage.getItem('pb_active_role') as UserRole | null;
+    if (savedRole) {
+      const savedAccounts = localStorage.getItem('pb_user_accounts');
+      const list: UserAccount[] = savedAccounts ? JSON.parse(savedAccounts) : INITIAL_USER_ACCOUNTS;
+      return list.find((a) => a.role === savedRole) || null;
+    }
+    return null;
   });
 
   // Active Module State (Role-specific default)
@@ -125,12 +152,13 @@ export default function App() {
     let isMounted = true;
     async function loadCloudData() {
       try {
-        const [cloudProducts, cloudCustomers, cloudSuppliers, cloudSales, cloudBranches] = await Promise.all([
+        const [cloudProducts, cloudCustomers, cloudSuppliers, cloudSales, cloudBranches, cloudAccounts] = await Promise.all([
           SupabaseService.fetchProducts(),
           SupabaseService.fetchCustomers(),
           SupabaseService.fetchSuppliers(),
           SupabaseService.fetchSales(),
           SupabaseService.fetchBranches(),
+          SupabaseService.fetchUserAccounts(),
         ]);
         if (!isMounted) return;
         if (cloudProducts && cloudProducts.length > 0) setProducts(cloudProducts);
@@ -138,6 +166,7 @@ export default function App() {
         if (cloudSuppliers && cloudSuppliers.length > 0) setSuppliers(cloudSuppliers);
         if (cloudSales && cloudSales.length > 0) setSales(cloudSales);
         if (cloudBranches && cloudBranches.length > 0) setBranches(cloudBranches);
+        if (cloudAccounts && cloudAccounts.length > 0) setUserAccounts(cloudAccounts);
       } catch {
         // Fallback to local data
       }
@@ -176,6 +205,18 @@ export default function App() {
     localStorage.setItem('pb_transfers', JSON.stringify(transfers));
   }, [transfers]);
 
+  useEffect(() => {
+    localStorage.setItem('pb_user_accounts', JSON.stringify(userAccounts));
+  }, [userAccounts]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('pb_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('pb_current_user');
+    }
+  }, [currentUser]);
+
   // Handle Stock Transfers between branches
   const handlePerformTransfer = (transfer: StockTransfer) => {
     setTransfers((prev) => [transfer, ...prev]);
@@ -202,9 +243,19 @@ export default function App() {
     });
   };
 
-  // Handle Role Selection
-  const handleSelectRole = (role: UserRole) => {
+  // Handle Role / User Selection
+  const handleSelectRole = (role: UserRole, account?: UserAccount) => {
     setCurrentRole(role);
+    let matched = account;
+    if (!matched) {
+      matched = userAccounts.find((a) => a.role === role);
+    }
+    if (matched) {
+      setCurrentUser(matched);
+      if (matched.branchId) {
+        setActiveBranchId(matched.branchId);
+      }
+    }
     if (role === 'Pos: ventas') {
       setActiveModule('pos');
     } else if (role === 'Admin') {
@@ -219,7 +270,29 @@ export default function App() {
   // Handle Logout
   const handleLogout = () => {
     setCurrentRole(null);
+    setCurrentUser(null);
+    localStorage.removeItem('pb_active_role');
+    localStorage.removeItem('pb_current_user');
     setActiveReceiptSale(null);
+  };
+
+  // User Accounts Handlers
+  const handleAddUserAccount = (account: UserAccount) => {
+    setUserAccounts((prev) => [account, ...prev]);
+    SupabaseService.upsertUserAccount(account);
+  };
+
+  const handleUpdateUserAccount = (account: UserAccount) => {
+    setUserAccounts((prev) => prev.map((a) => (a.id === account.id ? account : a)));
+    if (currentUser?.id === account.id) {
+      setCurrentUser(account);
+    }
+    SupabaseService.upsertUserAccount(account);
+  };
+
+  const handleDeleteUserAccount = (accountId: string) => {
+    setUserAccounts((prev) => prev.filter((a) => a.id !== accountId));
+    SupabaseService.deleteUserAccount(accountId);
   };
 
   // Handle Sale Completed in POS
@@ -270,9 +343,15 @@ export default function App() {
   };
 
   // Handle Branch Actions (Admin)
-  const handleAddBranch = (newBranch: Branch) => {
+  const handleAddBranch = (newBranch: Branch, initialUsers?: UserAccount[]) => {
     setBranches((prev) => [...prev, newBranch]);
     SupabaseService.upsertBranch(newBranch);
+    if (initialUsers && initialUsers.length > 0) {
+      setUserAccounts((prev) => [...initialUsers, ...prev]);
+      for (const u of initialUsers) {
+        SupabaseService.upsertUserAccount(u);
+      }
+    }
   };
 
   const handleUpdateBranch = (updated: Branch) => {
@@ -417,6 +496,7 @@ export default function App() {
     setSales([]);
     setBranches([]);
     setTransfers([]);
+    setUserAccounts([]);
     localStorage.setItem('pb_cleared_test_data', 'true');
     localStorage.setItem('pb_products', '[]');
     localStorage.setItem('pb_customers', '[]');
@@ -424,6 +504,7 @@ export default function App() {
     localStorage.setItem('pb_sales', '[]');
     localStorage.setItem('pb_branches', '[]');
     localStorage.setItem('pb_transfers', '[]');
+    localStorage.setItem('pb_user_accounts', '[]');
   };
 
   // Handler: Restore Initial Defaults Demo Data
@@ -439,6 +520,7 @@ export default function App() {
     setSales(data.sales);
     setBranches(INITIAL_BRANCHES);
     setTransfers(INITIAL_TRANSFERS);
+    setUserAccounts(INITIAL_USER_ACCOUNTS);
     localStorage.removeItem('pb_cleared_test_data');
     localStorage.setItem('pb_products', JSON.stringify(data.products));
     localStorage.setItem('pb_customers', JSON.stringify(data.customers));
@@ -446,6 +528,7 @@ export default function App() {
     localStorage.setItem('pb_sales', JSON.stringify(data.sales));
     localStorage.setItem('pb_branches', JSON.stringify(INITIAL_BRANCHES));
     localStorage.setItem('pb_transfers', JSON.stringify(INITIAL_TRANSFERS));
+    localStorage.setItem('pb_user_accounts', JSON.stringify(INITIAL_USER_ACCOUNTS));
     await SupabaseService.seedInitialData(
       data.products,
       data.customers,
@@ -457,7 +540,13 @@ export default function App() {
 
   // 1. Initial State: Role Selector Screen
   if (!currentRole) {
-    return <RoleSelector onSelectRole={handleSelectRole} />;
+    return (
+      <RoleSelector
+        onSelectRole={handleSelectRole}
+        userAccounts={userAccounts}
+        branches={branches}
+      />
+    );
   }
 
   // 2. Main Application Shell
@@ -466,6 +555,7 @@ export default function App() {
       {/* Unified Institutional Header */}
       <Header
         currentRole={currentRole}
+        currentUser={currentUser}
         onLogout={handleLogout}
         branches={branches}
         activeBranchId={activeBranchId}
@@ -531,6 +621,7 @@ export default function App() {
             <BranchesModule
               branches={branches}
               activeBranchId={activeBranchId}
+              userAccounts={userAccounts}
               currentRole={currentRole}
               products={products}
               sales={sales}
@@ -541,6 +632,10 @@ export default function App() {
               onDeleteBranch={handleDeleteBranch}
               onToggleBlockBranch={handleToggleBlockBranch}
               onPerformTransfer={handlePerformTransfer}
+              onAddUserAccount={handleAddUserAccount}
+              onUpdateUserAccount={handleUpdateUserAccount}
+              onDeleteUserAccount={handleDeleteUserAccount}
+              onNavigateToModule={setActiveModule}
             />
           )}
 
@@ -576,8 +671,10 @@ export default function App() {
           {activeModule === 'profile' && (
             <ProfileModule
               currentRole={currentRole}
+              currentUser={currentUser}
               sales={sales}
               onLogout={handleLogout}
+              onUpdateAccount={handleUpdateUserAccount}
             />
           )}
 
