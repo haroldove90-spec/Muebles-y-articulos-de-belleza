@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ExternalLink,
   Trash2,
+  Download,
 } from 'lucide-react';
 import { Product, Customer, Supplier, Sale, Branch } from '../types';
 
@@ -52,7 +53,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 
   const sqlCode = `-- ==============================================================================
 -- PALACIO DE BELLEZA - ESQUEMA COMPLETO Y ACTUALIZADO PARA SUPABASE
--- Proyecto: yioyruhnrcenyxkkgvun (Multi-sucursales, Roles, Credenciales y Traspasos)
+-- Proyecto: yioyruhnrcenyxkkgvun (Multi-sucursales, Inventario por Tienda, Roles y Traspasos)
 -- ==============================================================================
 
 -- 1. TABLA DE SUCURSALES (Multi-tienda y Matriz)
@@ -65,7 +66,8 @@ CREATE TABLE IF NOT EXISTS public.branches (
     manager_name TEXT,
     is_main BOOLEAN DEFAULT false,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
 -- 2. TABLA DE CUENTAS DE USUARIO Y CREDENCIALES POR SUCURSAL
@@ -86,7 +88,22 @@ CREATE TABLE IF NOT EXISTS public.user_accounts (
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 3. TABLA DE PRODUCTOS (Con Precios P1, P2, P3 y Existencias por Sucursal)
+-- 3. TABLA DE PERFILES (Profiles)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    photo_url TEXT,
+    store_name TEXT,
+    position TEXT,
+    bio TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- 4. TABLA DE PRODUCTOS (Precios P1, P2, P3 y Existencias por Sucursal)
 CREATE TABLE IF NOT EXISTS public.products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -96,6 +113,9 @@ CREATE TABLE IF NOT EXISTS public.products (
     price1 NUMERIC(12, 2),
     price2 NUMERIC(12, 2),
     price3 NUMERIC(12, 2),
+    price_1 NUMERIC(12, 2),
+    price_2 NUMERIC(12, 2),
+    price_3 NUMERIC(12, 2),
     cost_price NUMERIC(12, 2) DEFAULT 0,
     wholesale_price NUMERIC(12, 2),
     stock INTEGER NOT NULL DEFAULT 0,
@@ -103,11 +123,13 @@ CREATE TABLE IF NOT EXISTS public.products (
     branch_stocks JSONB DEFAULT '{}'::jsonb,
     image TEXT,
     description TEXT,
+    is_active BOOLEAN DEFAULT true,
     specs JSONB,
-    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 4. TABLA DE CLIENTES Y SALONES
+-- 5. TABLA DE CLIENTES Y SALONES
 CREATE TABLE IF NOT EXISTS public.customers (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -118,10 +140,12 @@ CREATE TABLE IF NOT EXISTS public.customers (
     address TEXT,
     notes TEXT,
     total_spent NUMERIC(12, 2) DEFAULT 0,
-    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 5. TABLA DE PROVEEDORES
+-- 6. TABLA DE PROVEEDORES
 CREATE TABLE IF NOT EXISTS public.suppliers (
     id TEXT PRIMARY KEY,
     company_name TEXT NOT NULL,
@@ -132,10 +156,11 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     city TEXT,
     credit_days INTEGER DEFAULT 30,
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 6. TABLA DE VENTAS Y TICKETS DE CAJA
+-- 7. TABLA DE VENTAS Y TICKETS DE CAJA
 CREATE TABLE IF NOT EXISTS public.sales (
     id TEXT PRIMARY KEY,
     folio TEXT NOT NULL,
@@ -154,11 +179,11 @@ CREATE TABLE IF NOT EXISTS public.sales (
     payment_method TEXT NOT NULL,
     amount_paid NUMERIC(12, 2) NOT NULL,
     change_due NUMERIC(12, 2) DEFAULT 0,
-    status TEXT DEFAULT 'Completada',
+    status TEXT NOT NULL DEFAULT 'Completada',
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 7. TABLA DE TRASPASOS DE INVENTARIO ENTRE SUCURSALES
+-- 8. TABLA DE TRASPASOS DE STOCK ENTRE SUCURSALES
 CREATE TABLE IF NOT EXISTS public.stock_transfers (
     id TEXT PRIMARY KEY,
     folio TEXT NOT NULL,
@@ -169,54 +194,76 @@ CREATE TABLE IF NOT EXISTS public.stock_transfers (
     product_id TEXT REFERENCES public.products(id) ON DELETE CASCADE,
     product_name TEXT NOT NULL,
     product_sku TEXT NOT NULL,
+    product_image TEXT,
     quantity INTEGER NOT NULL,
     date TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    received_date TIMESTAMPTZ,
     reason TEXT,
-    performed_by TEXT NOT NULL
+    performed_by TEXT NOT NULL,
+    received_by TEXT,
+    status TEXT NOT NULL DEFAULT 'En tránsito',
+    rejection_reason TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- HABILITAR SEGURIDAD (RLS)
+-- SEGURIDAD RLS
 ALTER TABLE public.branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stock_transfers ENABLE ROW LEVEL SECURITY;
 
--- POLÍTICAS DE ACCESO
+DROP POLICY IF EXISTS "Allow anon all branches" ON public.branches;
 CREATE POLICY "Allow anon all branches" ON public.branches FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all user_accounts" ON public.user_accounts;
 CREATE POLICY "Allow anon all user_accounts" ON public.user_accounts FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all profiles" ON public.profiles;
+CREATE POLICY "Allow anon all profiles" ON public.profiles FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all products" ON public.products;
 CREATE POLICY "Allow anon all products" ON public.products FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all customers" ON public.customers;
 CREATE POLICY "Allow anon all customers" ON public.customers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all suppliers" ON public.suppliers;
 CREATE POLICY "Allow anon all suppliers" ON public.suppliers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all sales" ON public.sales;
 CREATE POLICY "Allow anon all sales" ON public.sales FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow anon all stock_transfers" ON public.stock_transfers;
 CREATE POLICY "Allow anon all stock_transfers" ON public.stock_transfers FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
--- REGISTROS INICIALES DE SUCURSALES
+-- ARCHIVOS Y DATOS DE MUESTRA
 INSERT INTO public.branches (id, name, code, address, phone, manager_name, is_main, is_active)
 VALUES 
   ('branch-1', 'Sucursal 1 - Matriz (Principal)', 'SUC-01', 'Av. Principal 101, Col. Centro, CDMX', '+52 55 5555 0101', 'Emilio', true, true),
   ('branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'SUC-02', 'Plaza San Jerónimo Local 14, CDMX', '+52 55 5555 0202', 'Harold Anguiano', false, true),
   ('branch-3', 'Sucursal 3 - Insurgentes Sur', 'SUC-03', 'Av. Insurgentes Sur 1420, CDMX', '+52 55 5555 0303', 'Ana Lucía Morales', false, true)
-ON CONFLICT (id) DO UPDATE SET 
-  name = EXCLUDED.name,
-  code = EXCLUDED.code,
-  manager_name = EXCLUDED.manager_name;
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, code = EXCLUDED.code, manager_name = EXCLUDED.manager_name;
 
--- REGISTROS INICIALES DE USUARIOS Y CREDENCIALES INDEPENDIENTES
-INSERT INTO public.user_accounts (id, username, password, name, role, branch_id, branch_name, email, phone, position, bio)
+INSERT INTO public.user_accounts (id, username, password, name, role, branch_id, branch_name, email, phone, photo_url, position, bio)
 VALUES
-  ('user-admin-emilio', 'emilio', 'AdminPassword2026!', 'Emilio', 'Admin', 'branch-1', 'Sucursal 1 - Matriz (Principal)', 'emilio@palaciodebelleza.mx', '55-4123-9870', 'Director General & Administrador', 'Supervisión ejecutiva, control financiero, gestión multisucursales y altas de personal.'),
-  ('user-gerente-harold', 'harold', 'Gerente2026#', 'Harold Anguiano', 'Gerente', 'branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'harold@palaciodebelleza.mx', '55-7890-1234', 'Gerente Operativo de Sucursal', 'Supervisión de piso de ventas, clientes mayoristas e inventario en San Jerónimo.'),
-  ('user-vendedor-sofia', 'ventas_matriz', 'Ventas2026!', 'Sofía Morales', 'Pos: ventas', 'branch-1', 'Sucursal 1 - Matriz (Principal)', 'sofia.caja@palaciodebelleza.mx', '55-8765-4321', 'Ejecutiva de Mostrador & Cajera POS', 'Atención personalizada al cliente y cobros en punto de venta matriz.'),
-  ('user-vendedor-carlos', 'ventas_sanjeronimo', 'Ventas2026!', 'Carlos Mendoza', 'Pos: ventas', 'branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'carlos.ventas@palaciodebelleza.mx', '55-2233-4455', 'Vendedor de Mostrador POS', 'Ventas de mostrador y cobros en terminal POS San Jerónimo.')
-ON CONFLICT (id) DO UPDATE SET 
-  name = EXCLUDED.name,
-  username = EXCLUDED.username,
-  password = EXCLUDED.password,
-  role = EXCLUDED.role,
-  branch_id = EXCLUDED.branch_id;`;
+  ('user-admin-emilio', 'emilio', 'AdminPassword2026!', 'Emilio', 'Admin', 'branch-1', 'Sucursal 1 - Matriz (Principal)', 'emilio@palaciodebelleza.mx', '55-4123-9870', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=350', 'Director General & Administrador', 'Supervisión ejecutiva, control financiero, gestión multisucursales y altas de personal.'),
+  ('user-gerente-harold', 'harold', 'Gerente2026#', 'Harold Anguiano', 'Gerente', 'branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'harold@palaciodebelleza.mx', '55-7890-1234', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=350', 'Gerente Operativo de Sucursal', 'Supervisión de piso de ventas, clientes mayoristas e inventario en San Jerónimo.'),
+  ('user-vendedor-sofia', 'ventas_matriz', 'Ventas2026!', 'Sofía Morales', 'Pos: ventas', 'branch-1', 'Sucursal 1 - Matriz (Principal)', 'sofia.caja@palaciodebelleza.mx', '55-8765-4321', 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=350', 'Ejecutiva de Mostrador & Cajera POS', 'Atención personalizada al cliente y cobros en punto de venta matriz.'),
+  ('user-vendedor-carlos', 'ventas_sanjeronimo', 'Ventas2026!', 'Carlos Mendoza', 'Pos: ventas', 'branch-2', 'Sucursal 2 - Plaza San Jerónimo', 'carlos.ventas@palaciodebelleza.mx', '55-2233-4455', 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=350', 'Vendedor de Mostrador POS', 'Ventas de mostrador y cobros en terminal POS San Jerónimo.')
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, photo_url = EXCLUDED.photo_url;
+
+INSERT INTO public.products (id, name, sku, category, price, price1, price2, price3, price_1, price_2, price_3, cost_price, wholesale_price, stock, min_stock, branch_stocks, image, description, is_active)
+VALUES
+  ('prod-1', 'Sillón Hidráulico Reclinable Roma', 'MOB-SIL-01', 'Mobiliario', 6850, 6850, 6100, 5800, 6850, 6100, 5800, 4200, 6100, 8, 3, '{"branch-1": 4, "branch-2": 3, "branch-3": 1}'::jsonb, 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=600&q=80', 'Sillón para corte y barba tapizado en vinil premium.', true),
+  ('prod-2', 'Lavacabezas Italiano Milano con Taza Basculante', 'MOB-LAV-02', 'Mobiliario', 11400, 11400, 10200, 9700, 11400, 10200, 9700, 7800, 10200, 5, 2, '{"branch-1": 2, "branch-2": 2, "branch-3": 1}'::jsonb, 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80', 'Mueble lavacabezas con tina basculante de cerámica blanca.', true),
+  ('prod-4', 'Secadora Iónica Titanium Turbo 2400W', 'APA-SEC-01', 'Aparatos', 1850, 1850, 1600, 1500, 1850, 1600, 1500, 980, 1600, 14, 4, '{"branch-1": 6, "branch-2": 5, "branch-3": 3}'::jsonb, 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&w=600&q=80', 'Motor AC italiano de larga duración.', true),
+  ('prod-6', 'Tinte Capilar Permanente Milano Color 90ml', 'TIN-MIL-01', 'Tintes y Cuidado', 145, 145, 115, 105, 145, 115, 105, 68, 115, 45, 10, '{"branch-1": 20, "branch-2": 15, "branch-3": 10}'::jsonb, 'https://images.unsplash.com/photo-1562887189-e5d078343de4?auto=format&fit=crop&w=600&q=80', 'Fórmula con micro-pigmentos y ceramidas.', true)
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price = EXCLUDED.price, stock = EXCLUDED.stock, branch_stocks = EXCLUDED.branch_stocks, is_active = EXCLUDED.is_active;`;
 
   useEffect(() => {
     checkConn();
@@ -233,6 +280,18 @@ ON CONFLICT (id) DO UPDATE SET
     navigator.clipboard.writeText(sqlCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleDownloadSQL = () => {
+    const blob = new Blob([sqlCode], { type: 'text/sql;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'palacio_belleza_supabase_completo.sql';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleUploadToSupabase = async () => {
@@ -359,17 +418,29 @@ ON CONFLICT (id) DO UPDATE SET
 
           {/* Code Viewer with Copy Button */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Script SQL de Creación y Permisos
+                Script SQL de Creación, Permisos y Muestras
               </span>
-              <button
-                onClick={handleCopySQL}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? '¡Copiado!' : 'Copiar SQL'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadSQL}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer"
+                  title="Descargar archivo .sql a tu computadora"
+                >
+                  <Download className="w-3.5 h-3.5 text-pink-400" />
+                  <span>Descargar .SQL</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopySQL}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition active:scale-95 cursor-pointer"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copied ? '¡Copiado!' : 'Copiar SQL'}</span>
+                </button>
+              </div>
             </div>
 
             <pre className="p-4 bg-slate-900 text-slate-100 rounded-2xl text-xs font-mono max-h-48 overflow-y-auto leading-relaxed border border-slate-800">

@@ -574,6 +574,12 @@ export default function App() {
     SupabaseService.deleteSale(saleId);
   };
 
+  // Handle Permanent Transfer Deletion (Admin)
+  const handleDeleteTransfer = (transferId: string) => {
+    setTransfers((prev) => prev.filter((t) => t.id !== transferId));
+    SupabaseService.deleteTransfer(transferId);
+  };
+
   // Quick Action from Marketplace: Add to POS and navigate
   const handleAddToCartAndGoPOS = (product: Product) => {
     setActiveModule('pos');
@@ -720,6 +726,7 @@ export default function App() {
               onPerformTransfer={handlePerformTransfer}
               onAcceptTransfer={handleAcceptTransfer}
               onRejectTransfer={handleRejectTransfer}
+              onDeleteTransfer={handleDeleteTransfer}
               onNavigateToModule={setActiveModule}
             />
           )}
@@ -785,6 +792,7 @@ export default function App() {
               sales={sales}
               onLogout={handleLogout}
               onUpdateAccount={handleUpdateUserAccount}
+              onOpenSupabaseModal={() => setShowSupabaseModal(true)}
             />
           )}
 

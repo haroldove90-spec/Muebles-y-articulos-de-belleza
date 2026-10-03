@@ -1,10 +1,13 @@
 @import "tailwindcss";
 
-/* Eliminar flechas/steppers nativos en todos los inputs de número para captura manual limpia */
+/* Eliminar completamente flechas/steppers nativos en todos los inputs para captura manual limpia */
 input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
+input[type="number"]::-webkit-outer-spin-button,
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
   -webkit-appearance: none !important;
   margin: 0 !important;
+  display: none !important;
 }
 
 input[type="number"] {

@@ -284,19 +284,17 @@ export const CustomersModule: React.FC<CustomersModuleProps> = ({
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  {c.id !== 'cust-5' && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`¿Eliminar cliente ${c.name} definitivamente?`)) {
-                          onDeleteCustomer(c.id);
-                        }
-                      }}
-                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                      title="Eliminar cliente"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      if (confirm(`¿Eliminar cliente ${c.name} definitivamente?`)) {
+                        onDeleteCustomer(c.id);
+                      }
+                    }}
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                    title="Eliminar cliente"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>

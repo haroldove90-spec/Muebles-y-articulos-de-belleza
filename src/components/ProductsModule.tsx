@@ -48,6 +48,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   const [statusFilter, setStatusFilter] = useState<'Todos' | 'Activos' | 'Inactivos'>('Todos');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // File Upload & Drag-and-Drop State
   const [isDragging, setIsDragging] = useState(false);
@@ -633,13 +635,10 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`¿Eliminar producto "${item.name}" definitivamente del catálogo?`)) {
-                              onDeleteProduct(item.id);
-                            }
-                          }}
+                          type="button"
+                          onClick={() => setProductToDelete(item)}
                           className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                          title="Eliminar producto"
+                          title="Eliminar producto del sistema y Supabase"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -655,22 +654,29 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
 
       {/* CREATE / EDIT MODAL */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
-            <div className="bg-[#0F172A] p-4 text-white flex items-center justify-between">
-              <h3 className="text-base font-bold">
-                {editingProduct ? 'Editar Producto / Mueble' : 'Registrar Nuevo Producto'}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+            <div className="bg-[#0F172A] p-4 sm:p-5 text-white flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-2">
+                  <Package className="w-5 h-5 text-pink-400" />
+                  <span>{editingProduct ? 'Editar Producto / Mueble' : 'Registrar Nuevo Producto'}</span>
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Asigna existencias por sucursal, listas de precios P1/P2/P3 e imagen para Supabase.
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 text-slate-400 hover:text-white rounded"
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs sm:text-sm">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5 text-xs sm:text-sm overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="font-bold text-slate-700 block mb-1">Nombre del Producto / Mueble *</label>
                   <input
@@ -679,7 +685,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Ej. Sillón Hidráulico Roma Reclinable"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
                   />
                 </div>
 
@@ -689,8 +695,8 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     type="text"
                     required
                     value={formData.sku || ''}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono focus:outline-none focus:border-[#E6007E]"
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-mono font-bold focus:outline-none focus:border-[#E6007E]"
                   />
                 </div>
 
@@ -699,26 +705,35 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                   <select
                     value={formData.category || 'Mobiliario'}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value as ProductCategory })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E]"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] bg-white font-medium"
                   >
                     <option value="Mobiliario">Mobiliario (Sillones, Lavacabezas)</option>
                     <option value="Aparatos">Aparatos (Secadoras, Planchas)</option>
                     <option value="Tintes y Cuidado">Tintes y Cuidado Capilar</option>
                     <option value="Combos y Promos">Combos y Promociones</option>
                     <option value="Uñas y Estética">Uñas y Estética</option>
+                    <option value="Barbería">Barbería</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Costo Proveedor ($)</label>
-                  <input
-                    type="number"
-                    value={formData.costPrice || ''}
-                    placeholder="0"
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setFormData({ ...formData, costPrice: e.target.value === '' ? 0 : Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      pattern="[0-9.]*"
+                      value={formData.costPrice === 0 ? '' : formData.costPrice ?? ''}
+                      placeholder="0"
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9.]/g, '');
+                        setFormData({ ...formData, costPrice: val === '' ? 0 : Number(val) });
+                      }}
+                      className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] font-bold"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -729,16 +744,21 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     </span>
                   </div>
                   <input
-                    type="number"
-                    value={formData.minStock || ''}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={formData.minStock === 0 ? '' : formData.minStock ?? ''}
                     placeholder="3"
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value === '' ? 0 : Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setFormData({ ...formData, minStock: val === '' ? 0 : Number(val) });
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-[#E6007E] font-bold"
                   />
                 </div>
 
-                {/* 3 Listas de Precios Fijos (P1, P2, P3) */}
+                {/* 3 Listas de Precios Fijos (P1, P2, P3) sin flechas */}
                 <div className="sm:col-span-2 bg-gradient-to-r from-pink-50/60 via-blue-50/40 to-purple-50/40 p-4 rounded-2xl border border-pink-200/70">
                   <div className="flex items-center justify-between mb-3">
                     <div>
@@ -747,7 +767,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                         <span>Listas de Precios Fijos (Precio 1, 2, 3)</span>
                       </h4>
                       <p className="text-[11px] text-slate-500">
-                        Precios netos independientes (sin cálculos porcentuales en caja).
+                        Precios netos independientes configurables manualmente sin flechas ni cálculos forzados.
                       </p>
                     </div>
                   </div>
@@ -765,16 +785,19 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                       <div className="relative">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9.]*"
                           required
                           value={formData.price1 ?? formData.price ?? ''}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => {
-                            const val = e.target.value === '' ? 0 : Number(e.target.value);
+                            const clean = e.target.value.replace(/[^0-9.]/g, '');
+                            const val = clean === '' ? 0 : Number(clean);
                             setFormData({ ...formData, price: val, price1: val });
                           }}
                           placeholder="65"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-[#E6007E] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-[#E6007E]"
                         />
                       </div>
                     </div>
@@ -791,15 +814,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                       <div className="relative">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9.]*"
                           value={formData.price2 ?? formData.wholesalePrice ?? ''}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => {
-                            const val = e.target.value === '' ? 0 : Number(e.target.value);
+                            const clean = e.target.value.replace(/[^0-9.]/g, '');
+                            const val = clean === '' ? 0 : Number(clean);
                             setFormData({ ...formData, price2: val, wholesalePrice: val });
                           }}
                           placeholder="60"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-blue-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-blue-600"
                         />
                       </div>
                     </div>
@@ -816,12 +842,18 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                       <div className="relative">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9.]*"
                           value={formData.price3 ?? ''}
                           onFocus={(e) => e.target.select()}
-                          onChange={(e) => setFormData({ ...formData, price3: e.target.value === '' ? 0 : Number(e.target.value) })}
+                          onChange={(e) => {
+                            const clean = e.target.value.replace(/[^0-9.]/g, '');
+                            const val = clean === '' ? 0 : Number(clean);
+                            setFormData({ ...formData, price3: val });
+                          }}
                           placeholder="57"
-                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-purple-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 text-sm font-black text-[#0F172A] focus:outline-none focus:border-purple-600"
                         />
                       </div>
                     </div>
@@ -927,24 +959,24 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                   )}
                 </div>
 
-                {/* SUCURSALES: Asignación de Stock Inicial por Sucursal (Exactamente como lo solicitó el cliente) */}
+                {/* SUCURSALES: Asignación de Stock Inicial por Sucursal */}
                 <div className="sm:col-span-2 bg-gradient-to-br from-pink-50/70 via-purple-50/50 to-slate-50 p-4 sm:p-5 rounded-2xl border-2 border-pink-200/90 shadow-xs space-y-3.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-pink-200/60">
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-[#E6007E] text-white flex items-center justify-center shadow-xs">
-                          <Store className="w-4 h-4" />
-                        </div>
-                        <span>Inventario por Sucursal (Asignación Directa)</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-pink-200/60">
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      <div className="w-7 h-7 rounded-lg bg-[#E6007E] text-white flex items-center justify-center shadow-xs shrink-0">
+                        <Store className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wide">
+                        Inventario por Sucursal
                       </h4>
-                      <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5">
-                        Indica cuántas piezas se le mandan a cada sucursal (ej. 10 a Sucursal 1, 5 a Sucursal 2, 0 si no se envía):
-                      </p>
+                      <span className="text-[11px] font-bold text-pink-700 bg-pink-100 px-2 py-0.5 rounded-full">
+                        {branches.length} {branches.length === 1 ? 'sucursal' : 'sucursales'}
+                      </span>
                     </div>
 
                     {/* Acciones rápidas de llenado masivo */}
                     <div className="flex items-center gap-1.5 self-start sm:self-auto flex-wrap">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Llenado:</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Asignar:</span>
                       <button
                         type="button"
                         onClick={() => handleApplyStockToAllBranches(10)}
@@ -972,50 +1004,69 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                     </div>
                   </div>
 
-                  {/* Tarjetas / bolitas interactivas para cada sucursal */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <p className="text-[11px] text-slate-500 -mt-1">
+                    Indica manualmente cuántas piezas asignar a cada sucursal registrada por el administrador:
+                  </p>
+
+                  {/* Tarjetas interactivas por sucursal - Títulos limpios en 1 línea y captura manual sin flechas */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                     {branches.map((b) => {
                       const branchQty = formData.branchStocks?.[b.id] ?? 0;
                       return (
                         <div
                           key={b.id}
-                          className="bg-white p-3 rounded-2xl border-2 border-slate-200 hover:border-pink-300 shadow-2xs flex items-center justify-between gap-3 transition"
+                          className="bg-white p-3.5 rounded-2xl border-2 border-slate-200 hover:border-pink-300 shadow-2xs flex flex-col justify-between gap-2.5 transition"
                         >
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                                {b.code}
-                              </span>
-                              {b.isMain && (
-                                <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-pink-100 text-[#E6007E]">
-                                  Matriz
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs font-black text-slate-900 truncate mt-1" title={b.name}>
-                              {b.name}
-                            </p>
-                            <span className="text-[10px] text-slate-400">Piezas asignadas:</span>
+                          {/* Fila superior: Código y Badge */}
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                              {b.code}
+                            </span>
+                            <span
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                                b.isMain
+                                  ? 'bg-pink-100 text-[#E6007E] border-pink-200'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                              }`}
+                            >
+                              {b.isMain ? 'Matriz' : 'Sucursal'}
+                            </span>
                           </div>
 
-                          <div className="w-24 shrink-0 text-right">
-                            <div className="relative">
+                          {/* Nombre de la sucursal en 1 línea limpia con tooltip completo */}
+                          <div className="min-w-0">
+                            <p
+                              className="text-xs sm:text-sm font-bold text-slate-900 truncate leading-snug"
+                              title={b.name}
+                            >
+                              {b.name}
+                            </p>
+                            {b.managerName && (
+                              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                                Encargado: {b.managerName}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Fila inferior: Etiqueta y campo de entrada manual sin flechas */}
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-slate-600">Piezas:</span>
+                            <div className="w-28">
                               <input
-                                type="number"
-                                min="0"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 value={branchQty === 0 ? '' : branchQty}
                                 placeholder="0"
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => {
-                                  const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
-                                  handleBranchStockChange(b.id, val);
+                                  const clean = e.target.value.replace(/[^0-9]/g, '');
+                                  const val = clean === '' ? 0 : parseInt(clean, 10);
+                                  handleBranchStockChange(b.id, isNaN(val) ? 0 : val);
                                 }}
-                                className="w-full text-center px-2 py-2 rounded-xl border-2 border-pink-200 focus:border-[#E6007E] font-black text-base text-[#0F172A] focus:outline-none bg-pink-50/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                className="w-full text-center px-3 py-1.5 rounded-xl border-2 border-pink-200 focus:border-[#E6007E] font-black text-sm text-[#0F172A] focus:outline-none bg-white shadow-2xs"
                               />
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 block text-center">
-                              piezas
-                            </span>
                           </div>
                         </div>
                       );
@@ -1081,11 +1132,80 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-[#E6007E] hover:bg-[#D60072] text-white font-bold"
                 >
-                  {editingProduct ? 'Guardar Cambios' : 'Registrar Producto'}
+                  {editingProduct ? 'Guardar Cambios en Supabase' : 'Registrar Producto en Supabase'}
                 </button>
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN PARA BORRAR PRODUCTO DE SUPABASE Y SISTEMA */}
+      {productToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto p-6 space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base sm:text-lg font-black text-slate-900">
+                ¿Eliminar Producto Permanentemente?
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500">
+                Se eliminará <strong>"{productToDelete.name}"</strong> (SKU: {productToDelete.sku}) del catálogo y de la base de datos de <strong>Supabase</strong>. Esta acción no se puede deshacer.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center gap-3">
+              {productToDelete.image ? (
+                <img
+                  src={productToDelete.image}
+                  alt={productToDelete.name}
+                  className="w-12 h-12 rounded-xl object-cover shrink-0 bg-white border border-slate-200"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                  <Package className="w-6 h-6" />
+                </div>
+              )}
+              <div className="min-w-0 text-left">
+                <p className="text-xs font-bold text-slate-800 truncate">{productToDelete.name}</p>
+                <p className="text-[11px] text-slate-500 font-mono">Stock actual: {productToDelete.stock} piezas</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setProductToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteProduct(productToDelete.id);
+                  const name = productToDelete.name;
+                  setProductToDelete(null);
+                  setToastMessage(`Producto "${name}" eliminado correctamente del sistema y de Supabase.`);
+                  setTimeout(() => setToastMessage(null), 4000);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-md transition cursor-pointer"
+              >
+                Sí, Eliminar de Supabase
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating feedback toast */}
+      {toastMessage && (
+        <div className="fixed bottom-20 sm:bottom-8 right-4 sm:right-8 z-50 bg-[#0F172A] text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-2.5 animate-in slide-in-from-bottom duration-300">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          <span className="text-xs font-bold">{toastMessage}</span>
         </div>
       )}
     </div>

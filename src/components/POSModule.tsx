@@ -766,17 +766,34 @@ export const POSModule: React.FC<POSModuleProps> = ({
                     {/* Qty Controls */}
                     <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
                       <button
+                        type="button"
                         onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90"
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90 cursor-pointer"
+                        title="Restar 1"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-6 text-center text-xs font-bold text-[#0F172A]">
-                        {item.quantity}
-                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={item.quantity}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => {
+                          const clean = e.target.value.replace(/[^0-9]/g, '');
+                          const val = clean === '' ? 1 : Math.max(1, parseInt(clean, 10));
+                          setCart((prev) =>
+                            prev.map((it) => (it.product.id === item.product.id ? { ...it, quantity: val } : it))
+                          );
+                        }}
+                        className="w-10 text-center text-xs font-black text-[#0F172A] bg-slate-50 border border-slate-300 rounded px-1 py-0.5 focus:outline-none focus:border-[#E6007E]"
+                        title="Escribe la cantidad manualmente"
+                      />
                       <button
+                        type="button"
                         onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90"
+                        className="w-6 h-6 rounded flex items-center justify-center text-slate-600 hover:bg-slate-100 active:scale-90 cursor-pointer"
+                        title="Sumar 1"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
@@ -989,9 +1006,10 @@ export const POSModule: React.FC<POSModuleProps> = ({
                   </div>
 
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={amountReceived}
-                    onChange={(e) => setAmountReceived(e.target.value)}
+                    onChange={(e) => setAmountReceived(e.target.value.replace(/[^0-9.]/g, ''))}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-lg text-slate-900 bg-white focus:outline-none focus:border-[#E6007E]"
                     placeholder="0.00"
                   />
@@ -1136,11 +1154,16 @@ export const POSModule: React.FC<POSModuleProps> = ({
                 O ingresa porcentaje personalizado (%):
               </label>
               <input
-                type="number"
-                min="0"
-                max="100"
-                value={discountPercent}
-                onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, Number(e.target.value))))}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={discountPercent === 0 ? '' : discountPercent}
+                placeholder="0"
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/[^0-9]/g, '');
+                  const num = clean === '' ? 0 : Math.min(100, parseInt(clean, 10));
+                  setDiscountPercent(num);
+                }}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-800 focus:outline-none focus:border-blue-600"
               />
             </div>

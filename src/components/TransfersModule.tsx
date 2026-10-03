@@ -20,6 +20,7 @@ import {
   Printer,
   Sparkles,
   Info,
+  Trash2,
 } from 'lucide-react';
 import { TransferReceiptModal } from './TransferReceiptModal';
 
@@ -33,6 +34,7 @@ interface TransfersModuleProps {
   onPerformTransfer: (transfer: StockTransfer) => void;
   onAcceptTransfer: (transferId: string, receivedBy: string) => void;
   onRejectTransfer: (transferId: string, reason: string) => void;
+  onDeleteTransfer?: (transferId: string) => void;
   onNavigateToModule?: (module: ActiveModule) => void;
 }
 
@@ -46,12 +48,14 @@ export const TransfersModule: React.FC<TransfersModuleProps> = ({
   onPerformTransfer,
   onAcceptTransfer,
   onRejectTransfer,
+  onDeleteTransfer,
   onNavigateToModule,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'incoming' | 'outgoing' | 'transit' | 'received' | 'rejected'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingReceipt, setViewingReceipt] = useState<StockTransfer | null>(null);
+  const [transferToDelete, setTransferToDelete] = useState<StockTransfer | null>(null);
 
   // New Transfer Form State
   const [sourceBranchId, setSourceBranchId] = useState<string>(
@@ -635,6 +639,18 @@ export const TransfersModule: React.FC<TransfersModuleProps> = ({
                             <FileText className="w-3.5 h-3.5" />
                             <span>Orden / PDF</span>
                           </button>
+
+                          {/* Admin Delete Action */}
+                          {currentRole === 'Admin' && onDeleteTransfer && (
+                            <button
+                              type="button"
+                              onClick={() => setTransferToDelete(t)}
+                              title="Eliminar registro de traslado del sistema y Supabase"
+                              className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -778,14 +794,18 @@ export const TransfersModule: React.FC<TransfersModuleProps> = ({
                 </label>
                 <div className="flex items-center gap-3">
                   <input
-                    type="number"
-                    min="1"
-                    max={availableSourceStock}
-                    value={quantity || ''}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={quantity === 0 ? '' : quantity}
                     placeholder="1"
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setQuantity(e.target.value === '' ? 1 : Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    className="w-32 px-3 py-2 rounded-xl border border-slate-200 text-sm font-black font-mono focus:outline-none focus:border-purple-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/[^0-9]/g, '');
+                      const val = clean === '' ? 0 : parseInt(clean, 10);
+                      setQuantity(availableSourceStock > 0 ? Math.min(availableSourceStock, val) : val);
+                    }}
+                    className="w-32 px-3 py-2 rounded-xl border border-slate-200 text-sm font-black font-mono focus:outline-none focus:border-purple-600 bg-white"
                   />
                   <span className="text-xs text-slate-500">
                     {availableSourceStock > 0
@@ -904,6 +924,42 @@ export const TransfersModule: React.FC<TransfersModuleProps> = ({
             );
           }}
         />
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN PARA BORRAR TRASPASO DE SUPABASE */}
+      {transferToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-black text-base text-slate-900">¿Eliminar Registro de Traslado?</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Se eliminará permanentemente el folio <strong>{transferToDelete.folio}</strong> de la base de datos de <strong>Supabase</strong>.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setTransferToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteTransfer) onDeleteTransfer(transferToDelete.id);
+                  setTransferToDelete(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs font-black text-white shadow-md transition cursor-pointer"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

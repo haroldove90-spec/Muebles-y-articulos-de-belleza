@@ -366,9 +366,14 @@ export const SuppliersModule: React.FC<SuppliersModuleProps> = ({
                 <div>
                   <label className="font-bold text-slate-700 block mb-1">Días de Crédito Otorgados</label>
                   <input
-                    type="number"
-                    value={formData.creditDays || 30}
-                    onChange={(e) => setFormData({ ...formData, creditDays: Number(e.target.value) })}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={formData.creditDays ?? 30}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/[^0-9]/g, '');
+                      setFormData({ ...formData, creditDays: clean === '' ? 0 : parseInt(clean, 10) });
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:border-[#E6007E]"
                   />
                 </div>
