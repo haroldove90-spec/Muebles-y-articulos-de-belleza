@@ -21,6 +21,7 @@ import {
   Store,
   Layers,
   ChevronDown,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 interface ProductsModuleProps {
@@ -30,6 +31,7 @@ interface ProductsModuleProps {
   onAddProduct: (product: Product) => void;
   onUpdateProduct: (product: Product) => void;
   onDeleteProduct: (productId: string) => void;
+  onNavigateToTransfers?: (productId?: string) => void;
 }
 
 export const ProductsModule: React.FC<ProductsModuleProps> = ({
@@ -39,6 +41,7 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
   onAddProduct,
   onUpdateProduct,
   onDeleteProduct,
+  onNavigateToTransfers,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
@@ -331,14 +334,27 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
           </p>
         </div>
 
-        <button
-          id="btn-new-product"
-          onClick={handleOpenCreate}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E6007E] hover:bg-[#D60072] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Registrar Producto</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {branches.length >= 2 && onNavigateToTransfers && (
+            <button
+              type="button"
+              onClick={() => onNavigateToTransfers()}
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs sm:text-sm shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <ArrowLeftRight className="w-4 h-4 stroke-[2.5]" />
+              <span>Traslados Intersucursales</span>
+            </button>
+          )}
+
+          <button
+            id="btn-new-product"
+            onClick={handleOpenCreate}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#E6007E] hover:bg-[#D60072] text-white font-bold text-sm shadow-sm transition active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Registrar Producto</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Stats Bar */}
@@ -597,6 +613,17 @@ export const ProductsModule: React.FC<ProductsModuleProps> = ({
                         >
                           {isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                         </button>
+
+                        {branches.length >= 2 && onNavigateToTransfers && (
+                          <button
+                            type="button"
+                            onClick={() => onNavigateToTransfers(item.id)}
+                            className="p-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition cursor-pointer"
+                            title="Trasladar este producto a otra sucursal"
+                          >
+                            <ArrowLeftRight className="w-4 h-4" />
+                          </button>
+                        )}
 
                         <button
                           onClick={() => handleOpenEdit(item)}

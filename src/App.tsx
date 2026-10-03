@@ -31,6 +31,7 @@ import { SuppliersModule } from './components/SuppliersModule';
 import { SalesModule } from './components/SalesModule';
 import { MetricsModule } from './components/MetricsModule';
 import { ProfileModule } from './components/ProfileModule';
+import { TransfersModule } from './components/TransfersModule';
 import { ReceiptModal } from './components/ReceiptModal';
 import { SupabaseModal } from './components/SupabaseModal';
 import { GlobalClearModal } from './components/GlobalClearModal';
@@ -221,15 +222,15 @@ export default function App() {
   const handlePerformTransfer = (transfer: StockTransfer) => {
     setTransfers((prev) => [transfer, ...prev]);
 
+    // 1. Deduct stock from source branch immediately (in transit)
     setProducts((prev) => {
       return prev.map((prod) => {
         if (prod.id === transfer.productId) {
           const currentBranchStocks = prod.branchStocks ? { ...prod.branchStocks } : {};
           const sourceStock = currentBranchStocks[transfer.sourceBranchId] ?? prod.stock;
-          const targetStock = currentBranchStocks[transfer.targetBranchId] ?? 0;
 
+          // Deduct from source branch
           currentBranchStocks[transfer.sourceBranchId] = Math.max(0, sourceStock - transfer.quantity);
-          currentBranchStocks[transfer.targetBranchId] = targetStock + transfer.quantity;
 
           const updatedProd = {
             ...prod,
@@ -241,6 +242,96 @@ export default function App() {
         return prod;
       });
     });
+
+    // 2. Sync transfer record to Supabase
+    SupabaseService.insertTransfer(transfer);
+  };
+
+  // Handle Accept Transfer (Target Branch Gerente or Admin)
+  const handleAcceptTransfer = (transferId: string, receivedBy: string) => {
+    const targetTransfer = transfers.find((t) => t.id === transferId);
+    if (!targetTransfer || targetTransfer.status !== 'En tránsito') return;
+
+    const now = new Date().toISOString();
+
+    // 1. Increment stock in target branch
+    setProducts((prev) => {
+      return prev.map((prod) => {
+        if (prod.id === targetTransfer.productId) {
+          const currentBranchStocks = prod.branchStocks ? { ...prod.branchStocks } : {};
+          const currentTargetStock = currentBranchStocks[targetTransfer.targetBranchId] ?? 0;
+
+          currentBranchStocks[targetTransfer.targetBranchId] = currentTargetStock + targetTransfer.quantity;
+
+          const updatedProd = {
+            ...prod,
+            branchStocks: currentBranchStocks,
+          };
+          SupabaseService.upsertProduct(updatedProd);
+          return updatedProd;
+        }
+        return prod;
+      });
+    });
+
+    // 2. Mark transfer as Recibido
+    setTransfers((prev) =>
+      prev.map((t) =>
+        t.id === transferId
+          ? {
+              ...t,
+              status: 'Recibido',
+              receivedBy,
+              receivedDate: now,
+            }
+          : t
+      )
+    );
+
+    // 3. Sync status with Supabase
+    SupabaseService.updateTransferStatus(transferId, 'Recibido', receivedBy, now);
+  };
+
+  // Handle Reject Transfer
+  const handleRejectTransfer = (transferId: string, reason: string) => {
+    const targetTransfer = transfers.find((t) => t.id === transferId);
+    if (!targetTransfer || targetTransfer.status !== 'En tránsito') return;
+
+    // 1. Revert stock back to source branch
+    setProducts((prev) => {
+      return prev.map((prod) => {
+        if (prod.id === targetTransfer.productId) {
+          const currentBranchStocks = prod.branchStocks ? { ...prod.branchStocks } : {};
+          const currentSourceStock = currentBranchStocks[targetTransfer.sourceBranchId] ?? 0;
+
+          currentBranchStocks[targetTransfer.sourceBranchId] = currentSourceStock + targetTransfer.quantity;
+
+          const updatedProd = {
+            ...prod,
+            branchStocks: currentBranchStocks,
+          };
+          SupabaseService.upsertProduct(updatedProd);
+          return updatedProd;
+        }
+        return prod;
+      });
+    });
+
+    // 2. Mark transfer as Rechazado
+    setTransfers((prev) =>
+      prev.map((t) =>
+        t.id === transferId
+          ? {
+              ...t,
+              status: 'Rechazado',
+              rejectionReason: reason,
+            }
+          : t
+      )
+    );
+
+    // 3. Sync status with Supabase
+    SupabaseService.updateTransferStatus(transferId, 'Rechazado', undefined, undefined, reason);
   };
 
   // Handle Role / User Selection
@@ -614,6 +705,22 @@ export default function App() {
               onAddProduct={handleAddProduct}
               onUpdateProduct={handleUpdateProduct}
               onDeleteProduct={handleDeleteProduct}
+              onNavigateToTransfers={() => setActiveModule('transfers')}
+            />
+          )}
+
+          {activeModule === 'transfers' && (
+            <TransfersModule
+              transfers={transfers}
+              branches={branches}
+              products={products}
+              activeBranchId={activeBranchId}
+              currentRole={currentRole}
+              currentUser={currentUser}
+              onPerformTransfer={handlePerformTransfer}
+              onAcceptTransfer={handleAcceptTransfer}
+              onRejectTransfer={handleRejectTransfer}
+              onNavigateToModule={setActiveModule}
             />
           )}
 
@@ -622,6 +729,7 @@ export default function App() {
               branches={branches}
               activeBranchId={activeBranchId}
               userAccounts={userAccounts}
+              currentUser={currentUser}
               currentRole={currentRole}
               products={products}
               sales={sales}
@@ -632,6 +740,8 @@ export default function App() {
               onDeleteBranch={handleDeleteBranch}
               onToggleBlockBranch={handleToggleBlockBranch}
               onPerformTransfer={handlePerformTransfer}
+              onAcceptTransfer={handleAcceptTransfer}
+              onRejectTransfer={handleRejectTransfer}
               onAddUserAccount={handleAddUserAccount}
               onUpdateUserAccount={handleUpdateUserAccount}
               onDeleteUserAccount={handleDeleteUserAccount}

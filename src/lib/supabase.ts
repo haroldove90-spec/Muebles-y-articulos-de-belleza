@@ -384,10 +384,16 @@ export const SupabaseService = {
         productId: d.product_id,
         productName: d.product_name,
         productSku: d.product_sku,
+        productImage: d.product_image || undefined,
         quantity: Number(d.quantity),
         date: d.date,
+        receivedDate: d.received_date || undefined,
         reason: d.reason || undefined,
         performedBy: d.performed_by,
+        receivedBy: d.received_by || undefined,
+        status: (d.status as any) || 'Recibido',
+        rejectionReason: d.rejection_reason || undefined,
+        notes: d.notes || undefined,
       }));
     } catch {
       return null;
@@ -396,7 +402,7 @@ export const SupabaseService = {
 
   async insertTransfer(transfer: StockTransfer) {
     try {
-      await supabase.from('stock_transfers').insert({
+      await supabase.from('stock_transfers').upsert({
         id: transfer.id,
         folio: transfer.folio,
         source_branch_id: transfer.sourceBranchId,
@@ -406,13 +412,32 @@ export const SupabaseService = {
         product_id: transfer.productId,
         product_name: transfer.productName,
         product_sku: transfer.productSku,
+        product_image: transfer.productImage || null,
         quantity: transfer.quantity,
         date: transfer.date,
+        received_date: transfer.receivedDate || null,
         reason: transfer.reason || null,
         performed_by: transfer.performedBy,
+        received_by: transfer.receivedBy || null,
+        status: transfer.status || 'En tránsito',
+        rejection_reason: transfer.rejectionReason || null,
+        notes: transfer.notes || null,
       });
     } catch (err) {
       console.warn('Supabase insertTransfer error:', err);
+    }
+  },
+
+  async updateTransferStatus(transferId: string, status: string, receivedBy?: string, receivedDate?: string, rejectionReason?: string) {
+    try {
+      await supabase.from('stock_transfers').update({
+        status,
+        received_by: receivedBy || null,
+        received_date: receivedDate || new Date().toISOString(),
+        rejection_reason: rejectionReason || null,
+      }).eq('id', transferId);
+    } catch (err) {
+      console.warn('Supabase updateTransferStatus error:', err);
     }
   },
 

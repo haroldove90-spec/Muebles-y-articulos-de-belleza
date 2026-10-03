@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveModule, UserRole } from '../types';
-import { ShoppingCart, Package, Users, Truck, ReceiptText, BarChart3, UserCircle, Store } from 'lucide-react';
+import { ShoppingCart, Package, Users, Truck, ReceiptText, BarChart3, UserCircle, Store, ArrowLeftRight } from 'lucide-react';
 
 interface BottomBarProps {
   activeModule: ActiveModule;
@@ -30,6 +30,12 @@ export const BottomBar: React.FC<BottomBarProps> = ({
       id: 'products',
       label: 'Inventario',
       icon: <Package className="w-5 h-5" />,
+      allowedRoles: ['Admin', 'Gerente'],
+    },
+    {
+      id: 'transfers',
+      label: 'Traslados',
+      icon: <ArrowLeftRight className="w-5 h-5" />,
       allowedRoles: ['Admin', 'Gerente'],
     },
     {

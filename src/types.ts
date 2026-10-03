@@ -136,6 +136,8 @@ export interface UserProfile {
   joinedDate?: string;
 }
 
+export type StockTransferStatus = 'En tránsito' | 'Recibido' | 'Rechazado';
+
 export interface StockTransfer {
   id: string;
   folio: string;
@@ -146,11 +148,17 @@ export interface StockTransfer {
   productId: string;
   productName: string;
   productSku: string;
+  productImage?: string;
   quantity: number;
   date: string;
+  receivedDate?: string;
   reason?: string;
   performedBy: string;
+  receivedBy?: string;
+  status: StockTransferStatus;
+  rejectionReason?: string;
+  notes?: string;
 }
 
-export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics' | 'profile' | 'branches';
+export type ActiveModule = 'pos' | 'marketplace' | 'products' | 'customers' | 'suppliers' | 'sales' | 'metrics' | 'profile' | 'branches' | 'transfers';
 

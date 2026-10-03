@@ -34,6 +34,7 @@ import {
   Eye,
   EyeOff,
   Compass,
+  Clock,
 } from 'lucide-react';
 import { TransferReceiptModal } from './TransferReceiptModal';
 
@@ -54,6 +55,7 @@ interface BranchesModuleProps {
   branches: Branch[];
   activeBranchId: string;
   userAccounts?: UserAccount[];
+  currentUser?: UserAccount | null;
   products?: Product[];
   sales?: Sale[];
   transfers?: StockTransfer[];
@@ -65,6 +67,8 @@ interface BranchesModuleProps {
   onDeleteBranch: (branchId: string) => void;
   onToggleBlockBranch?: (branchId: string) => void;
   onPerformTransfer?: (transfer: StockTransfer) => void;
+  onAcceptTransfer?: (transferId: string, receivedBy: string) => void;
+  onRejectTransfer?: (transferId: string, reason: string) => void;
   onAddUserAccount?: (account: UserAccount) => void;
   onUpdateUserAccount?: (account: UserAccount) => void;
   onDeleteUserAccount?: (accountId: string) => void;
@@ -75,6 +79,7 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
   branches,
   activeBranchId,
   userAccounts = [],
+  currentUser,
   products = [],
   sales = [],
   transfers = [],
@@ -86,6 +91,8 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
   onDeleteBranch,
   onToggleBlockBranch,
   onPerformTransfer,
+  onAcceptTransfer,
+  onRejectTransfer,
   onAddUserAccount,
   onUpdateUserAccount,
   onDeleteUserAccount,
@@ -105,6 +112,7 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
   } | null>(null);
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [transferSubFilter, setTransferSubFilter] = useState<'all' | 'incoming' | 'outgoing' | 'transit' | 'received'>('all');
 
   // New Branch Form State (Including Automatic Independent Roles: Gerente & Pos Ventas)
   const [formData, setFormData] = useState<{
@@ -439,10 +447,12 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
       productId: selectedProd.id,
       productName: selectedProd.name,
       productSku: selectedProd.sku,
+      productImage: selectedProd.image,
       quantity: Number(transferQuantity),
       date: new Date().toISOString(),
       reason: transferReason.trim() || 'Traspaso de inventario',
-      performedBy: transferPerformedBy.trim() || currentRole,
+      performedBy: currentUser?.name ? `${currentUser.name} (${currentUser.role})` : (transferPerformedBy.trim() || currentRole),
+      status: 'En tránsito',
     };
 
     if (onPerformTransfer) {
@@ -1105,6 +1115,7 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
                     <th className="py-3 px-4 font-bold">Origen &rarr; Destino</th>
                     <th className="py-3 px-4 font-bold">Producto Movido</th>
                     <th className="py-3 px-4 font-bold text-center">Cantidad</th>
+                    <th className="py-3 px-4 font-bold text-center">Estado</th>
                     <th className="py-3 px-4 font-bold">Motivo / Operador</th>
                     <th className="py-3 px-4 font-bold text-right">Comprobante</th>
                   </tr>
@@ -1112,56 +1123,95 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
                 <tbody className="divide-y divide-slate-100">
                   {transfers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400 font-medium">
+                      <td colSpan={7} className="py-8 text-center text-slate-400 font-medium">
                         No hay traspasos registrados aún en el sistema.
                       </td>
                     </tr>
                   ) : (
-                    transfers.map((t) => (
-                      <tr key={t.id} className="hover:bg-purple-50/30 transition">
-                        <td className="py-3 px-4">
-                          <span className="font-mono font-bold text-purple-700 block">{t.folio}</span>
-                          <span className="text-[11px] text-slate-400">
-                            {new Date(t.date).toLocaleDateString('es-MX', {
-                              day: '2-digit',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-800">{t.sourceBranchName}</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-purple-500 shrink-0" />
-                            <span className="font-bold text-slate-800">{t.targetBranchName}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="font-bold text-slate-900 leading-tight">{t.productName}</p>
-                          <span className="font-mono text-[11px] text-slate-400">{t.productSku}</span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="inline-block px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 font-black text-xs font-mono">
-                            {t.quantity} pzas
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <p className="text-slate-700 truncate max-w-xs">{t.reason || 'Sin motivo'}</p>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">Por: {t.performedBy}</span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setViewingTransferReceipt(t)}
-                            className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-purple-100 text-purple-700 font-bold transition flex items-center gap-1 ml-auto cursor-pointer"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            <span>Vale</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    transfers.map((t) => {
+                      const isPending = t.status === 'En tránsito';
+                      const canAccept = isPending && (currentRole === 'Admin' || currentRole === 'Gerente');
+
+                      return (
+                        <tr key={t.id} className="hover:bg-purple-50/30 transition">
+                          <td className="py-3 px-4">
+                            <span className="font-mono font-bold text-purple-700 block">{t.folio}</span>
+                            <span className="text-[11px] text-slate-400">
+                              {new Date(t.date).toLocaleDateString('es-MX', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-800">{t.sourceBranchName}</span>
+                              <ArrowRight className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                              <span className="font-bold text-slate-800">{t.targetBranchName}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <p className="font-bold text-slate-900 leading-tight">{t.productName}</p>
+                            <span className="font-mono text-[11px] text-slate-400">{t.productSku}</span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="inline-block px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 font-black text-xs font-mono">
+                              {t.quantity} pzas
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black ${
+                                t.status === 'Recibido'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : t.status === 'Rechazado'
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  : 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                              }`}
+                            >
+                              {t.status === 'Recibido' && <CheckCircle2 className="w-3 h-3" />}
+                              {t.status === 'En tránsito' && <Clock className="w-3 h-3" />}
+                              {t.status === 'Rechazado' && <AlertCircle className="w-3 h-3" />}
+                              <span>{t.status}</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <p className="text-slate-700 truncate max-w-xs">{t.reason || 'Sin motivo'}</p>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Envió: {t.performedBy} {t.receivedBy ? `• Recibió: ${t.receivedBy}` : ''}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {canAccept && onAcceptTransfer && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const receiver = currentUser?.name ? `${currentUser.name} (${currentUser.role})` : 'Emilio (Admin)';
+                                    onAcceptTransfer(t.id, receiver);
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition flex items-center gap-1 cursor-pointer"
+                                  title="Aceptar y recibir mercancía"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Aceptar</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setViewingTransferReceipt(t)}
+                                className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-purple-100 text-purple-700 font-bold transition flex items-center gap-1 cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Vale / PDF</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1796,7 +1846,35 @@ export const BranchesModule: React.FC<BranchesModuleProps> = ({
       {viewingTransferReceipt && (
         <TransferReceiptModal
           transfer={viewingTransferReceipt}
+          currentUser={currentUser}
+          currentRole={currentRole}
+          activeBranchId={activeBranchId}
           onClose={() => setViewingTransferReceipt(null)}
+          onAcceptTransfer={(id, receivedBy) => {
+            if (onAcceptTransfer) onAcceptTransfer(id, receivedBy);
+            setViewingTransferReceipt((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: 'Recibido',
+                    receivedBy,
+                    receivedDate: new Date().toISOString(),
+                  }
+                : null
+            );
+          }}
+          onRejectTransfer={(id, reason) => {
+            if (onRejectTransfer) onRejectTransfer(id, reason);
+            setViewingTransferReceipt((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: 'Rechazado',
+                    rejectionReason: reason,
+                  }
+                : null
+            );
+          }}
         />
       )}
     </div>
